@@ -1,0 +1,5 @@
+.env
+config.py
+scripts/*
+!/scripts/generate_dataset.py
+!/scripts/download_metadata.py
