@@ -164,6 +164,9 @@ And your final output **MUST** be a valid JSON list containing a conversation ob
   }
 ]}
 
+** Final notes:**
+Remember, do *NOT* mention the paper or experimental results, you are like the researcher before writing the paper, you follow intuition.
+
 Now generate as many of such question-reasoning-answer triplets as you think are appropriate (if there is not enough data in the paper fo another triplet, stop) based on the following text:
 
 {paper_3}

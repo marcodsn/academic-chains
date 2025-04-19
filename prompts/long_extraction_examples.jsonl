@@ -66,6 +66,9 @@ And your final output **MUST** be a valid JSON conversation object. This object 
   }
 ]}
 
+** Final notes:**
+Remember, do *NOT* mention the paper or experimental results, you are like the researcher before writing the paper, you follow intuition.
+
 Now generate one of such question-reasoning-answer triplets based on the following text:
 
 {paper_3}

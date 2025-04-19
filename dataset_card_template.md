@@ -3,34 +3,45 @@ tags:
 - reasoning-datasets-competition # Competition tag!
 - reasoning
 - academic-papers
-- distillation
-- biology # Add relevant domains
-- social-sciences # Add relevant domains
+- question-answering
+- chain-of-thought
+- biology
+- economics
 language:
 - en
-license: apache-2.0 # Or your chosen license
-pretty_name: "Academic Reasoning Chains" # Choose a catchy name
+license: apache-2.0
+pretty_name: "Academic Reasoning and Intuition Chains"
 dataset_info:
   features:
-    - name: paper_id
+    - name: arxiv_id
       dtype: string
-    - name: source_text_segment
+    - name: paper_doi
       dtype: string
-    - name: source_url # Optional, but good practice (e.g., DOI link)
+    - name: paper_authors
+      dtype: list[string]
+    - name: paper_published_date
       dtype: string
-    - name: domain # e.g., 'Biology', 'Sociology'
+    - name: paper_updated_date
       dtype: string
-    - name: reasoning_chain # The final, curated chain
-      dtype: string # Or potentially list[string]
+    - name: conversations
+      dtype: list[dict]
+    - name: entry_type
+      dtype: string # multi-short, single-long # multi-short, single-long
+    - name: categories
+      dtype: list[string]
+    - name: avg_thinking_tokens
+      dtype: float
+    - name: model
+      dtype: string
   splits:
     - name: train
       num_bytes: # Fill this in after creation
       num_examples: # Fill this in after creation (should be >= 100 for competition)
-  download_size: # Fill this in
-  dataset_size: # Fill this in
+      download_size: # Fill this in
+      dataset_size: # Fill this in
 ---
 
-# Dataset Card for Academic Reasoning Chains
+# Dataset Card for Academic Reasoning and Intuition Chains
 
 ## Dataset Description
 
@@ -60,11 +71,18 @@ The creation pipeline involved the following steps:
 ### Dataset Structure
 
 Each example in the dataset includes:
-*   `paper_id`: Identifier for the source paper.
-*   `source_text_segment`: The original text from which the chain was extracted.
-*   `source_url`: (Optional) A DOI or URL link to the original paper.
-*   `domain`: The academic domain of the paper.
-*   `reasoning_chain`: The curated reasoning chain, represented as [describe format, e.g., a newline-separated string of logical steps].
+*   `arxiv_id`: Identifier for the source paper.
+*   `paper_doi`: DOI or URL link to the original paper.
+*   `paper_authors`: List of authors of the paper.
+*   `paper_published_date`: Date of publication of the paper.
+*   `paper_updated_date`: Date of last update of the paper.
+*   `conversations`: List of dictionaries containing the reasoning chain in a conversational format. Each entry includes:
+    *   `user`: The question or prompt about the paper content.
+    *   `assistant`: The response providing reasoning or explanation.
+*   `entry_type`: Indicates whether the entry contains multiple short reasoning chains or a single long chain.
+*   `categories`: List of academic categories or subfields the paper belongs to.
+*   `avg_thinking_tokens`: Average number of tokens in the thinking sections, indicating reasoning complexity.
+*   `model`: The LLM used to generate the reasoning chains.
 
 ## Example Uses
 
@@ -85,7 +103,7 @@ This dataset can be used to train or evaluate models on tasks such as:
 
 ## Licensing Information
 
-This dataset is licensed under the [Your Chosen License, e.g., Apache License 2.0].
+This dataset is licensed under the [Apache License 2.0].
 
 ## Citation Information
 
