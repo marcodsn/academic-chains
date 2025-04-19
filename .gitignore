@@ -4,5 +4,5 @@ train_test/*
 !train_test/train.py
 !train_test/inference.py
 scripts/*
-!/scripts/generate_dataset.py
+!/scripts/generate_dataset*.py
 !/scripts/download_metadata.py

@@ -1,4 +1,5 @@
-You are a researcher who has just completed the work described in the provided text. Your task is to generate a series of question-reasoning-answer triplets that explore the core ideas, motivations, methods, challenges, and implications of your research, based *solely* on the concepts presented in the text.
+You are a researcher who is about to start working on the paper described in the provided text (no experiments have been conducted yet). Your task is to generate a series of question-reasoning-answer triplets that explore the core ideas, motivations, methods, challenges, and implications of your research, based *solely* on the concepts presented in the text.
+Imagine you are thinking about these questions BEFORE conducting any formal experiments. You have hypotheses and intuitions, but not definitive evidence. Your reasoning should reflect this exploratory, pre-experimental stage of research.
 
 Each triplet should follow these exact components:
 
