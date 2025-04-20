@@ -7,6 +7,7 @@ from datasets import Dataset
 from unsloth import is_bfloat16_supported
 from unsloth.chat_templates import train_on_responses_only
 import torch
+from random import shuffle
 from typing import List, Dict
 
 max_seq_length = 4096  # Choose any! We auto support RoPE Scaling internally!
@@ -14,7 +15,9 @@ load_in_4bit = True  # Use 4bit quantization to reduce memory usage. Can be Fals
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     # model_name = "NousResearch/Hermes-3-Llama-3.2-3B",
-    model_name = "unsloth/Llama-3.2-3B-Instruct-bnb-4bit",
+    # model_name = "unsloth/Llama-3.2-3B-Instruct-bnb-4bit",
+    # model_name = "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
+    model_name = "unsloth/Qwen2.5-7B-Instruct-bnb-4bit",
     max_seq_length = max_seq_length,
     load_in_4bit = load_in_4bit,
 )
@@ -32,11 +35,13 @@ model = FastLanguageModel.get_peft_model(
     random_state = 3407,
     use_rslora = False,  # We support rank stabilized LoRA
     loftq_config = None, # And LoftQ
+    use_dora = True
 )
 
 tokenizer = get_chat_template(
     tokenizer,
-    chat_template = "llama-3.1",
+    # chat_template = "llama-3.1",
+    chat_template = "qwen-2.5",
 )
 
 def formatting_prompts_func(examples):
@@ -68,6 +73,7 @@ for entry in dataset:
     if not entry["avg_thinking_tokens"]:
         dataset.remove(entry)
 print(f"Post-filtering: {len(dataset)}")
+shuffle(dataset)
 
 dataset = Dataset.from_list(dataset)
 
@@ -89,8 +95,8 @@ trainer = SFTTrainer(
     dataset_num_proc = 2,
     packing = False, # Can make training 5x faster for short sequences.
     args = TrainingArguments(
-        per_device_train_batch_size = 2,
-        gradient_accumulation_steps = 4,
+        per_device_train_batch_size = 1,
+        gradient_accumulation_steps = 8,
         warmup_steps = 5,
         num_train_epochs = 2, # Set this for 1 full training run.
         # max_steps = 30,
@@ -109,12 +115,14 @@ trainer = SFTTrainer(
 
 trainer = train_on_responses_only(
     trainer,
-    instruction_part="<|start_header_id|>user<|end_header_id|>\n\n",
-    response_part="<|start_header_id|>assistant<|end_header_id|>\n\n",
+    # instruction_part="<|start_header_id|>user<|end_header_id|>\n\n",
+    # response_part="<|start_header_id|>assistant<|end_header_id|>\n\n",
+    instruction_part = "<|im_start|>user\n",
+    response_part = "<|im_start|>assistant\n",
 )
 
 trainer_stats = trainer.train()
 
-model.save_pretrained_merged("model", tokenizer, save_method = "merged_16bit",)
-model.save_pretrained_gguf("model", tokenizer,)
-model.save_pretrained_gguf("model", tokenizer, quantization_method = "q4_k_m")
+model.save_pretrained_merged("model_big", tokenizer, save_method = "merged_16bit",)
+model.save_pretrained_gguf("model_big", tokenizer,)
+model.save_pretrained_gguf("model_big", tokenizer, quantization_method = "q4_k_m")

@@ -8,7 +8,7 @@ from pathlib import Path
 RATE_LIMIT_DELAY = 3 # seconds
 
 # Default number of papers per category
-DEFAULT_NUM_PAPERS = 50
+DEFAULT_NUM_PAPERS = 120
 
 def download_arxiv_metadata(categories, num_papers_per_category, output_file):
     """
@@ -43,7 +43,7 @@ def download_arxiv_metadata(categories, num_papers_per_category, output_file):
             search = arxiv.Search(
                 query = f"cat:{category}",
                 max_results = num_papers_per_category,
-                sort_by = arxiv.SortCriterion.Relevance, # Or SubmittedDate or LastUpdatedDate
+                sort_by = arxiv.SortCriterion.SubmittedDate, # Or Relevance or LastUpdatedDate
                 sort_order = arxiv.SortOrder.Descending
             )
 

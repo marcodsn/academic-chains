@@ -56,7 +56,7 @@ converter = DocumentConverter()
 tokenizer = AutoTokenizer.from_pretrained("unsloth/gemma-3-27b-it")
 
 def generate_dataset():
-    dataset_path = "dataset/data/train.jsonl"
+    dataset_path = "dataset/data/zraw.jsonl"
 
     # Ensure directory exists
     os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
