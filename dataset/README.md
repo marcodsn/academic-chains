@@ -24,12 +24,14 @@ configs:
 
 ## Dataset Description
 
-*   **GitHub:** [https://github.com/marcodsn/reasoning-dataset-competition](https://github.com/marcodsn/reasoning-dataset-competition)
+*   **GitHub:** [https://github.com/marcodsn/academic-chains](https://github.com/marcodsn/academic-chains)
 *   **Dataset:** [https://huggingface.co/datasets/marcodsn/academic-chains](https://huggingface.co/datasets/marcodsn/academic-chains) (this page)
 
-This dataset contains reasoning chains distilled from open-access research papers, primarily focusing on the q-bio and econ.GN categories (check [arXiv](https://arxiv.org) for more information about the categories). The goal is to create academically-grounded reasoning chains that capture the underlying logical structure, argumentation, or justification presented by the authors.
+![Surgeon problem solved](surgeon-competition-dark.png)
 
-This dataset was created as a proof-of-concept for the Reasoning Datasets Competition (April 2025).
+This dataset contains reasoning (and intuition) chains distilled from open-access research papers, primarily focusing on the q-bio and econ.GN categories (check [arXiv](https://arxiv.org) for more information about the categories). The goal is to create academically-grounded reasoning chains that capture the underlying logical structure, argumentation, or justification presented by the authors.
+
+This dataset was created as a proof-of-concept for the [Reasoning Datasets Competition](https://huggingface.co/blog/bespokelabs/reasoning-datasets-competition) (April 2025).
 
 ## Dataset Creation
 
@@ -39,16 +41,28 @@ The reasoning chains were derived from text extracted from open-access research 
 
 ### Data Collection and Processing
 
+> **Update:** We now use Curator for our pipeline! Check out how we did that at [academic-chains/scripts/curator](https://github.com/marcodsn/academic-chains/tree/main/scripts/curator)
+
 The creation pipeline involved the following steps:
 
 1.  **Metadata Gathering:** We used the `arxiv` python API wrapper to fetch metadata for papers from the fields of Quantitative Biology (q-bio) and General Economics (econ.GN), filtering by Relevance.
 2.  **PDF Text Extraction:** Text was then extracted from source PDFs using the `docling` library, in markdown format.
 3.  **Reasoning Chain Extraction:** An LLM (for this demo, we used `gemini-2.5-flash-preview-04-17`, `gemini-2.5-pro-exp-03-25`, and `deepseek-ai/DeepSeek-V3`) was prompted, using few-shot examples with curated paper-to-reasoning samples, to extract the reasoning chain/s from the selected papers.
+
+    *   **Generating Intuition:** A key aspect of our generation prompt instructs the LLM to adopt the persona of the researcher *before* experiments are conducted. This encourages the generation of reasoning chains that reflect not just logical steps, but also the hypotheses, explorations, and **intuitions** based on the core concepts, capturing the exploratory thinking process inherent in research, rather than simply summarizing final results, while still being grounded by the evidence presented in the paper.
+
 4.  **Formatting and Cleaning:** The final dataset entries have been filtered (removed entries with no reasoning chains) and formatted into a standardized JSON structure; each entry also cites the source paper and its authors, and includes the average length of the reasoning chains in the specific entry, useful for training of approximated reasoning-with-budget-of-n models.
 
 **Notes on step 3:** From the same paper, we extract: multiple shorter reasoning chains (entry_type: "multi-short" in the dataset) and a single, longer reasoning chain (entry_type: "single-long" in the dataset) which tries to capture the main BIG question-reasoning-answer triplet of the paper.
 
-The code used to generate this dataset is available on our [reasoning-datasets-competition](https://github.com/marcodsn/reasoning-datasets-competition) repository.
+The code used to generate this dataset is available on our [academic-chains GitHub repository](https://github.com/marcodsn/academic-chains).
+### Splits (Temporary)
+
+You can currently find 2 splits in this dataset: `train` and `zraw`. `zraw` contains the raw generated data without any processing, while `train` contains the processed data, specifically:
+*   `removed entries with no reasoning chains`: As described above.
+*   `removed the first ~500 entries`: This was done because of a couple of changes in the data generation pipeline that happened after the generation of these samples: the generation prompt was updated, and we moved from the beta openai-compatible API for gemini to the official gemini API for the gemini models; to ensure that the quality of the evaluated dataset remains consistent, we decided to remove the entries generated before the update.
+
+> **Update:** We added a new split, `zraw_curator`, generated using [Bespoke Curator](https://github.com/bespokelabsai/curator). This split is currently unused as we have not extensively tested the new generation script yet, and so the `train` split remains rooted to the `zraw` split for now.
 
 ### Dataset Structure
 
@@ -90,9 +104,9 @@ We tested and fine-tuned [unsloth/Llama-3.2-3B-Instruct](https://huggingface.co/
 
 **Note 3:** Yes, we are aware that our results are lower than expected *for both models*; the problem likely stems from the use of llama.cpp as the server to host these models (we quantized them to q8). If time allows, we will run the tests again loading the fp16 versions in the Transformers library directly.
 
-## Example Output
+## Example Output (Llama-3.2-3B-Instruct tuned on Academic Chains)
 
-![Example Model Output](reasoning-competition-dark.png)
+![Example Model Output (Llama-3.2-3B-Instruct tuned on Academic Chains)](reasoning-competition-dark.png)
 
 We also fine-tuned [unsloth/Qwen2.5-7B-Instruct](https://huggingface.co/unsloth/Qwen2.5-7B-Instruct) (same library and similar code have been used); results for this model will be uploaded soon™️.
 
@@ -125,3 +139,21 @@ This dataset is licensed under the [Apache License 2.0](https://www.apache.org/l
 	url = {https://huggingface.co/datasets/marcodsn/academic-chains}
 }
 ```
+
+## Why Choose Me as the Winner? :D
+
+(The following has been written by GPT-4.1; this section itself is here just "for the meme" and will likely be deleted after the competition)
+
+- **Real academic reasoning, not just Q&A!** My dataset distills genuine logic and intuition chains straight from open-access research, capturing both the “how” and the “why” of real scientific thinking—not just final answers or mathematical proofs.
+
+- **Novel domains, immediate impact.** It covers both Quantitative Biology and Economics, turning challenging academic texts into stepwise, explainable learning material for LLMs. (And with scaling plans to go broader, fast!)
+
+- **Proof it works, right here.** Even with a small dataset and very lightweight tuning, we already see meaningful MMLU gains (see card)! Imagine the boost at scale.
+
+- **Transparency and open science.** Full pipeline and data are open-source, reproducible, and ready for the community to build on.
+
+- **Ambitious scaling plan.** I’m already set to expand into more fields, add multi-modal reasoning (charts! math!), and roll out advanced quality checks.
+
+- **Let’s make LLMs think like scientists—not just recite facts.**
+
+Pick this project and help academic reasoning go from “proof-of-concept” to “powerhouse” for the next wave of LLMs! 🚀

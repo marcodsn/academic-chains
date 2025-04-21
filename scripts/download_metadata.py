@@ -8,7 +8,7 @@ from pathlib import Path
 RATE_LIMIT_DELAY = 3 # seconds
 
 # Default number of papers per category
-DEFAULT_NUM_PAPERS = 120
+DEFAULT_NUM_PAPERS = 150
 
 def download_arxiv_metadata(categories, num_papers_per_category, output_file):
     """

@@ -10,14 +10,15 @@ import torch
 from random import shuffle
 from typing import List, Dict
 
-max_seq_length = 4096  # Choose any! We auto support RoPE Scaling internally!
+max_seq_length = 48000  # Choose any! We auto support RoPE Scaling internally!
 load_in_4bit = True  # Use 4bit quantization to reduce memory usage. Can be False.
 
 model, tokenizer = FastLanguageModel.from_pretrained(
     # model_name = "NousResearch/Hermes-3-Llama-3.2-3B",
-    # model_name = "unsloth/Llama-3.2-3B-Instruct-bnb-4bit",
+    model_name = "unsloth/Llama-3.2-3B-Instruct-bnb-4bit",
     # model_name = "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
-    model_name = "unsloth/Qwen2.5-7B-Instruct-bnb-4bit",
+    # model_name = "unsloth/Qwen2.5-7B-Instruct-bnb-4bit",
+    # model_name = "unsloth/Mistral-Small-3.1-24B-Instruct-2503-bnb-4bit",
     max_seq_length = max_seq_length,
     load_in_4bit = load_in_4bit,
 )
@@ -40,8 +41,9 @@ model = FastLanguageModel.get_peft_model(
 
 tokenizer = get_chat_template(
     tokenizer,
-    # chat_template = "llama-3.1",
-    chat_template = "qwen-2.5",
+    chat_template = "llama-3.1",
+    # chat_template = "qwen-2.5",
+    # chat_template = "chatml",
 )
 
 def formatting_prompts_func(examples):
@@ -60,7 +62,7 @@ def formatting_prompts_func(examples):
     return { "text" : text, }
 
 dataset = []
-with open("../dataset/data/train.jsonl", "r") as f:
+with open("../dataset/data/zraw.jsonl", "r") as f:
     for line in f:
         if line.strip():  # Skip empty lines
             try:
@@ -115,14 +117,14 @@ trainer = SFTTrainer(
 
 trainer = train_on_responses_only(
     trainer,
-    # instruction_part="<|start_header_id|>user<|end_header_id|>\n\n",
-    # response_part="<|start_header_id|>assistant<|end_header_id|>\n\n",
-    instruction_part = "<|im_start|>user\n",
-    response_part = "<|im_start|>assistant\n",
+    instruction_part="<|start_header_id|>user<|end_header_id|>\n\n",
+    response_part="<|start_header_id|>assistant<|end_header_id|>\n\n",
+    # instruction_part = "<|im_start|>user\n",
+    # response_part = "<|im_start|>assistant\n",
 )
 
 trainer_stats = trainer.train()
 
-model.save_pretrained_merged("model_big", tokenizer, save_method = "merged_16bit",)
-model.save_pretrained_gguf("model_big", tokenizer,)
-model.save_pretrained_gguf("model_big", tokenizer, quantization_method = "q4_k_m")
+model.save_pretrained_merged("model", tokenizer, save_method = "merged_16bit",)
+model.save_pretrained_gguf("model", tokenizer,)
+model.save_pretrained_gguf("model", tokenizer, quantization_method = "q4_k_m")

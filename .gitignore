@@ -1,9 +1,13 @@
 .env
 config.py
+
 train_test/*
 !train_test/train.py
 !train_test/inference.py
+
 scripts/*
 !/scripts/generate_dataset*.py
 !/scripts/download_metadata.py
 !/scripts/upload_dataset.py
+
+!/scripts/curator/

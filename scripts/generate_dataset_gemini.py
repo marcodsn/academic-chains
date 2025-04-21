@@ -16,8 +16,8 @@ if api_key is None:
     raise ValueError("GEMINI_API_KEY environment variable not set")
 client = genai.Client(api_key=api_key)
 
-model="gemini-2.5-flash-preview-04-17"
-# model="gemini-2.5-pro-exp-03-25"
+# model="gemini-2.5-flash-preview-04-17"
+model="gemini-2.5-pro-exp-03-25"
 
 # Define Pydantic models for structured output
 class ConversationEntry(BaseModel):
