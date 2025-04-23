@@ -444,10 +444,10 @@ def main():
     parser.add_argument("--month", required=True, help="Month (01-12)")
     parser.add_argument("--year", required=True, help="Year (e.g., 21 for 2021)")
     parser.add_argument("--output", default="./data", help="Output directory")
-    parser.add_argument("--batch-size", type=int, default=8, help="Number of papers processed per worker process")
+    parser.add_argument("--batch-size", type=int, default=4, help="Number of papers processed per worker process")
     parser.add_argument("--prefetch", type=int, default=3, help="Download queue size factor (prefetch * batch_size)")
     # --- Adjusted Timeout Help Text ---
-    parser.add_argument("--timeout-per-paper", type=int, default=120,
+    parser.add_argument("--timeout-per-paper", type=int, default=240,
                         help="Estimated timeout PER PAPER in seconds. Total batch timeout will be this * batch_size.")
 
     args = parser.parse_args()

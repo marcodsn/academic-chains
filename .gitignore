@@ -13,3 +13,4 @@ scripts/*
 !/scripts/curator/
 
 large_scale/data/*
+dataset/data/*

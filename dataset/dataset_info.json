@@ -55,13 +55,13 @@
     "splits": {
         "train": {
             "name": "train",
-            "num_bytes": 4143270,
-            "num_examples": 469
+            "num_bytes": 4619114,
+            "num_examples": 517
         },
         "zraw": {
             "name": "zraw",
-            "num_bytes": 8522996,
-            "num_examples": 1002
+            "num_bytes": 9001295,
+            "num_examples": 1050
         },
         "zraw_curator": {
             "name": "zraw_curator",
@@ -69,8 +69,8 @@
             "num_examples": 120
         }
     },
-    "download_size": 12666266,
-    "dataset_size": 12666266,
+    "download_size": 13620409,
+    "dataset_size": 13620409,
     "pretty_name": "Academic Reasoning and Intuition Chains",
     "tags": [
         "reasoning-datasets-competition",

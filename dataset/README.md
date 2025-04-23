@@ -43,12 +43,12 @@ The reasoning chains were derived from text extracted from open-access research 
 
 ### Data Collection and Processing
 
-> **Update:** We now use Curator for our pipeline! Check out how we did that at [academic-chains/scripts/curator](https://github.com/marcodsn/academic-chains/tree/main/scripts/curator)
+> **[21/04/2025]** We now use Curator for our pipeline! Check out how we did that at [academic-chains/scripts/curator](https://github.com/marcodsn/academic-chains/tree/main/scripts/curator)
 
 The creation pipeline involved the following steps:
 
 1.  **Metadata Gathering:** We used the `arxiv` python API wrapper to fetch metadata for papers from the fields of Quantitative Biology (q-bio) and General Economics (econ.GN), filtering by Relevance.
-2.  **PDF Text Extraction:** Text was then extracted from source PDFs using the `docling` library, in markdown format.
+2.  **PDF Text Extraction:** Text was then extracted from source PDFs using the [`docling`](https://github.com/docling-project/docling) library, in markdown format.
 3.  **Reasoning Chain Extraction:** An LLM (for this demo, we used `gemini-2.5-flash-preview-04-17`, `gemini-2.5-pro-exp-03-25`, and `deepseek-ai/DeepSeek-V3`) was prompted, using few-shot examples with curated paper-to-reasoning samples, to extract the reasoning chain/s from the selected papers.
 
     *   **Generating Intuition:** A key aspect of our generation prompt instructs the LLM to adopt the persona of the researcher *before* experiments are conducted. This encourages the generation of reasoning chains that reflect not just logical steps, but also the hypotheses, explorations, and **intuitions** based on the core concepts, capturing the exploratory thinking process inherent in research, rather than simply summarizing final results, while still being grounded by the evidence presented in the paper.
@@ -64,7 +64,7 @@ You can currently find 2 splits in this dataset: `train` and `zraw`. `zraw` cont
 *   `removed entries with no reasoning chains`: As described above.
 *   `removed the first ~500 entries`: This was done because of a couple of changes in the data generation pipeline that happened after the generation of these samples: the generation prompt was updated, and we moved from the beta openai-compatible API for gemini to the official gemini API for the gemini models; to ensure that the quality of the evaluated dataset remains consistent, we decided to remove the entries generated before the update.
 
-> **Update:** We added a new split, `zraw_curator`, generated using [Bespoke Curator](https://github.com/bespokelabsai/curator). This split is currently unused as we have not extensively tested the new generation script yet, and so the `train` split remains rooted to the `zraw` split for now.
+> **[21/04/2025]** We added a new split, `zraw_curator`, generated using [Bespoke Curator](https://github.com/bespokelabsai/curator). This split is currently unused as we have not extensively tested the new generation script yet, and so the `train` split remains rooted to the `zraw` split for now.
 
 ### Dataset Structure
 
@@ -117,8 +117,10 @@ We also fine-tuned [unsloth/Qwen2.5-7B-Instruct](https://huggingface.co/unsloth/
 Our scaling plan includes:
 1. **Expanded Domain Coverage:** Extend beyond q-bio and econ.GN to include additional scientific fields such as Computer Science (cs.AI, cs.CL), Physics (physics), and more categories too (Social Sciences?).
 2. **Increased Volume:** Scale from our current proof-of-concept size to LOTS+ reasoning chains (if/when compute allows)
-3. **Enhanced Quality Verification:** We would also try and implement a model-in-the-loop validation system to check for hallucinations, bad instruction following samples and low quality reasoning chains
+3. **Enhanced Quality Verification:** We would also try and implement a model-in-the-loop validation system to check for hallucinations, bad instruction following samples (all the samples that currently mention "the text") and low quality reasoning chains
 4. **Multi-modal Reasoning:** Extend our approach to extract reasoning from papers that include charts, diagrams, and mathematical formulations (gemma-3 as the base model anyone? 👀)
+
+> **[23/04/2025]** Work for a larger scale generation has started! You can check the code we are working with (and the README!) at [this link](https://github.com/marcodsn/academic-chains/tree/main/large_scale) and you can also find now our new in-contruction "support" dataset, [arxiv-markdown](https://huggingface.co/datasets/marcodsn/arxiv-markdown)
 
 ## Limitations and Biases
 
