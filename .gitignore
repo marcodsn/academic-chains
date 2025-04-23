@@ -11,3 +11,5 @@ scripts/*
 !/scripts/upload_dataset.py
 
 !/scripts/curator/
+
+large_scale/data/*

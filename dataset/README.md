@@ -18,6 +18,8 @@ configs:
         path: "data/train.jsonl"
       - split: zraw
         path: "data/zraw.jsonl"
+      - split: zraw_curator
+        path: "data/zraw_curator.jsonl"
 ---
 
 # Dataset Card for Academic Reasoning and Intuition Chains
@@ -113,16 +115,20 @@ We also fine-tuned [unsloth/Qwen2.5-7B-Instruct](https://huggingface.co/unsloth/
 # Scaling Plan
 
 Our scaling plan includes:
-1. **Expanded Domain Coverage:** Extend beyond q-bio and econ.GN to include additional scientific fields such as Computer Science (cs.AI, cs.CL), Physics (physics), and more categories too (Social Sciences?).
-2. **Increased Volume:** Scale from our current proof-of-concept size to LOTS+ reasoning chains (if/when compute allows)
-3. **Enhanced Quality Verification:** We would also try and implement a model-in-the-loop validation system to check for hallucinations, bad instruction following samples and low quality reasoning chains
-4. **Multi-modal Reasoning:** Extend our approach to extract reasoning from papers that include charts, diagrams, and mathematical formulations (gemma-3 as the base model anyone? 👀)
+1. **Expanded Domain Coverage:** Extend beyond q-bio and econ.GN to include additional scientific fields such as Computer Science (cs.AI, cs.CL), Physics (physics), and more categories too (Social Sciences?).
+2. **Increased Volume:** Scale from our current proof-of-concept size to LOTS+ reasoning chains (if/when compute allows)
+3. **Enhanced Quality Verification:** We would also try and implement a model-in-the-loop validation system to check for hallucinations, bad instruction following samples and low quality reasoning chains
+4. **Multi-modal Reasoning:** Extend our approach to extract reasoning from papers that include charts, diagrams, and mathematical formulations (gemma-3 as the base model anyone? 👀)
 
 ## Limitations and Biases
 
 *   **Source Bias:** The dataset reflects the topics, writing styles, and potential biases present in the selected open-access papers. Fields or regions with less open-access publishing may be underrepresented.
 *   **Extraction Fidelity:** LLM extraction can introduce errors (hallucination, misinterpretation) even when grounding the reasoning chains with the original text (hallucinations still exist in RAG, so it comes out naturally that they will also be present in our reasoning chains).
 *   **Limited Scope:** This proof-of-concept dataset contains <1000 examples and may not cover the full breadth of reasoning patterns even within the selected domains; we will work on expanding it in the future!
+
+## Acknowledgements
+
+I'd like to thank my team at [Noetic Labs](https://huggingface.co/NoeticLabs) for supporting me during the development of this dataset, [HuggingFace](https://huggingface.co/), [Bespoke Labs](https://www.bespokelabs.ai/) and [Together AI](https://together.ai/) for organizing the competition, and a special thanks goes to the Academic Community, to the authors of all the open-access papers that allow projects like this to exist, THANK YOU!
 
 ## Licensing Information
 
