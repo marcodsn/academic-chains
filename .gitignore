@@ -14,3 +14,8 @@ scripts/*
 
 large_scale/data/*
 dataset/data/*
+
+# Test and dev files
+large_scale/scripts/test*
+large_scale/scratch
+large_scale/scripts/embedded_to_r2.py

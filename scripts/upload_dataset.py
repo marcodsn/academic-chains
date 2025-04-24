@@ -82,6 +82,11 @@ dataset_info = {
             "name": "zraw",
             "num_bytes": raw_size_bytes,
             "num_examples": raw_num_examples
+        },
+        "zraw_curator": {
+            "name": "zraw_curator",
+            "num_bytes": 0,
+            "num_examples": 0
         }
     },
     "download_size": dataset_size_bytes,

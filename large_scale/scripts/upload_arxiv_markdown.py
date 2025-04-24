@@ -8,7 +8,7 @@ import logging
 import time
 
 # --- Configuration ---
-JSONL_DIR = "data"  # Directory containing data/arxiv_*.jsonl files
+JSONL_DIR = "data/arxiv_md"  # Directory containing arxiv_*.jsonl files
 JSONL_PATTERN = f"{JSONL_DIR}/arxiv_*.jsonl"
 HF_DATASET_NAME = "marcodsn/arxiv-markdown"
 BATCH_SIZE_ARXIV_API = 100 # How many papers to query from arXiv API at once

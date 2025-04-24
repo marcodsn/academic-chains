@@ -1,8 +1,8 @@
 # THE PLAN
 
 Ok so, very rough and definitely not definitive pipeline:
-1. We are going to extract markdowns from arxiv papers ahead of time (currently we are doing one month at a time); images will be saved as embedded base64 data (for a possible future multimodal dataset) inside the markdown, formulas converted in latex (many thanks to [docling](https://github.com/docling-project/docling/tree/main))
-2. We are going to clean this data and to upload it regurarly to the [Hub](https://huggingface.co/) under [`marcodsn/arxiv-markdown`](https://huggingface.co/datasets/marcodsn/arxiv-markdown) (for simplicity)
+1. We are going to extract markdowns from arxiv papers ahead of time (currently we are doing one month at a time); images will be saved to an R2 instance (for a possible future multimodal dataset) and referenced inside the markdown, formulas converted in latex (many thanks to [docling](https://github.com/docling-project/docling/tree/main))
+2. We are going to clean this data and to upload it regularly to the [Hub](https://huggingface.co/) under [`marcodsn/arxiv-markdown`](https://huggingface.co/datasets/marcodsn/arxiv-markdown) (for simplicity)
 3. This data will be used to create the prompts to be sent to the LLM inference engine (we will leverage [Curator](https://github.com/bespokelabsai/curator) for easy batched inferenced and monitoring)
 4. As in the old pipeline, we will clean the data by removing non-valid examples, although... (check the line below 👀)
 

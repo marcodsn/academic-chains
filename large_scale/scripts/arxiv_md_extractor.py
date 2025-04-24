@@ -13,12 +13,42 @@ from pathlib import Path
 from docling.datamodel.base_models import InputFormat
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling_core.types.doc import ImageRefMode
+from docling_core.types.doc import ImageRefMode, PictureItem
 import shutil
+import io
+import uuid
+import boto3
+from dotenv import load_dotenv
+
+load_dotenv()
 
 multiprocessing.set_start_method('spawn', force=True)  # CUDA requires spawn
 
 IMAGE_RESOLUTION_SCALE = 2.0
+
+
+def upload_to_r2(image_data, filename, content_type='image/jpeg'):
+    """Upload image to Cloudflare R2 and return the public URL"""
+    # Initialize R2 client (ideally once per batch outside this function)
+    s3_client = boto3.client(
+        's3',
+        endpoint_url = os.getenv("R2_ENDPOINT"),
+        aws_access_key_id = os.getenv("R2_KEY_ID"),
+        aws_secret_access_key = os.getenv("R2_KEY_SECRET"),
+        region_name = os.getenv("R2_REGION", "auto")
+    )
+
+    # Upload the image
+    s3_client.put_object(
+        Bucket = 'arxiv-markdown-images',
+        Key = f"{filename}",
+        Body = image_data,
+        ContentType = content_type
+    )
+
+    # Return the public URL
+    return f"https://ac.marcodsn.me/arxiv-markdown-images/{filename}"
+
 
 def batch_convert_worker(paper_batch_info, result_queue, worker_id):
     """
@@ -70,7 +100,32 @@ def batch_convert_worker(paper_batch_info, result_queue, worker_id):
             try:
                 # Convert using docling
                 result = converter.convert(local_path)
-                markdown = result.document.export_to_markdown(image_mode=ImageRefMode.EMBEDDED)
+
+                # Extract and upload images to Cloudflare R2
+                image_urls = []
+
+                # Process figures
+                for element, _level in result.document.iterate_items():
+                    if isinstance(element, PictureItem) and hasattr(element, 'get_image'):
+                        # Generate unique ID for the figure
+                        figure_id = str(uuid.uuid4())
+                        image_filename = f"{arxiv_id}-figure-{figure_id}.jpg"
+
+                        # Get image, convert to JPEG and upload
+                        pil_img = element.get_image(result.document)
+                        jpeg_data = io.BytesIO()
+                        pil_img.convert('RGB').save(jpeg_data, format='JPEG', quality=95)
+                        jpeg_data.seek(0)
+
+                        # Upload and store URL
+                        r2_url = upload_to_r2(jpeg_data, image_filename, content_type='image/jpeg')
+                        print(f"Uploaded image {image_filename} to R2, URL: {r2_url}")
+                        image_urls.append(r2_url)
+
+                markdown = result.document.export_to_markdown(image_mode=ImageRefMode.PLACEHOLDER, image_placeholder="<!-- image -->")
+                # Replace <!-- image --> with the actual image URLs
+                for i, url in enumerate(image_urls):
+                    markdown = markdown.replace(f"<!-- image -->", f"![image]({url})", 1)
 
                 # Create result object for this paper
                 paper_result = {
@@ -443,7 +498,7 @@ def main():
     parser = argparse.ArgumentParser(description="arXiv PDF to Markdown Converter (Batch Worker)")
     parser.add_argument("--month", required=True, help="Month (01-12)")
     parser.add_argument("--year", required=True, help="Year (e.g., 21 for 2021)")
-    parser.add_argument("--output", default="./data", help="Output directory")
+    parser.add_argument("--output", default="./data/arxiv_md", help="Output directory")
     parser.add_argument("--batch-size", type=int, default=4, help="Number of papers processed per worker process")
     parser.add_argument("--prefetch", type=int, default=3, help="Download queue size factor (prefetch * batch_size)")
     # --- Adjusted Timeout Help Text ---
