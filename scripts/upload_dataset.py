@@ -1,8 +1,16 @@
 import os
+from datetime import datetime
 from datasets import load_dataset, DatasetDict
 
 # Load the raw dataset
 dataset = load_dataset("./dataset/", split="zraw")
+
+# Convert dates to ISO strings in dataset
+def convert_dates(example):
+    for col in ['paper_published_date', 'paper_updated_date']:
+        if col in example and isinstance(example[col], datetime):
+            example[col] = example[col].isoformat()
+    return example
 
 # Filter out examples with a value of "avg_thinking_tokens" == 0
 raw_num_examples = pre_filter = len(dataset)
