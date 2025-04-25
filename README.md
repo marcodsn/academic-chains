@@ -1,6 +1,6 @@
 # Academic Reasoning and Intuition Chains
 
-![Surgeon problem solved lol](dataset/surgeon-competition-dark.png)
+![Surgeon problem solved lol](data/surgeon-competition-dark.png)
 
 A dataset of reasoning and intuition chains distilled from open-access research papers, primarily from q-bio and econ.GN arXiv categories. This project was created as a proof-of-concept for the [Reasoning Datasets Competition](https://huggingface.co/blog/bespokelabs/reasoning-datasets-competition) (April 2025).
 
@@ -52,7 +52,7 @@ academic-chains/
 git clone https://github.com/marcodsn/academic-chains.git
 cd academic-chains
 
-# Install dependencies (the requirements.txt may not be complete yet sorry)
+# Install dependencies
 pip install -r requirements.txt
 ```
 
@@ -88,14 +88,11 @@ Each example in the dataset includes:
 
 ## Usage and Evaluation
 
-### Available Scripts
+### Main available Scripts
 
-- `scripts/download_metadata.py`: Download ArXiv paper metadata
-- `scripts/generate_dataset_gemini.py`: Generate dataset using Google's Gemini models
-- `scripts/generate_dataset_togetherai.py`: Generate dataset using Together AI models
-- `scripts/upload_dataset.py`: Upload the processed dataset to HuggingFace (currently upload is disabled, the script only generates the splits)
-- `scripts/curator/generate*.py`: Generation scripts with Curator
-- `train_test/train.py`: Fine-tune a model on the dataset
+- `scripts/data_generation/curator_*.py`: Generate dataset
+- `scripts/upload_to_hf.py`: Upload the processed dataset to HuggingFace (currently upload is disabled, the script only generates the splits)
+- `scripts/train/train.py`: Fine-tune a model on the dataset
 
 ## Limitations and Biases
 
