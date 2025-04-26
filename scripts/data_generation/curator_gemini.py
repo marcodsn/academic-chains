@@ -43,7 +43,7 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 # --- Thread Lock for File Writing ---
 # To prevent potential race conditions if Curator ever uses threads internally
-# or if you adapt this code for concurrency later.
+# or if we adapt this code for concurrency later.
 file_lock = threading.Lock()
 
 def load_checkpoint(checkpoint_path: str) -> Set[str]:
@@ -90,7 +90,7 @@ def load_papers_metadata():
     print("Loading papers metadata...")
     # If streaming, iterate directly; otherwise, iterate over dataset['train']
     count = 0
-    limit = 10  # Optional: Limit the number of papers for testing/cost control
+    limit = 220  # Optional: Limit the number of papers for testing/cost control
     for item in dataset:
         papers_data.append({
             "arxiv_id": item["arxiv_id"],
@@ -111,7 +111,7 @@ def load_papers_metadata():
     shuffle(papers_data)
     return papers_data
 
-# Loading prompts (assuming this function remains the same)
+# Loading prompts
 def load_prompts():
     prompts = {}
     # Make sure paths are correct relative to script execution location
