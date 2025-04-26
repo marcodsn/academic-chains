@@ -18,7 +18,7 @@ if api_key is None:
 together = Together(api_key=api_key)
 
 # --- Configuration ---
-model = "deepseek-ai/DeepSeek-V3"
+# model = "deepseek-ai/DeepSeek-V3"
 model = "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
 
 
@@ -31,9 +31,9 @@ class Conversation(BaseModel):
     conversations: List[ConversationEntry] = Field(description="List of conversation entries")
 
 # --- Paths ---
-DATASET_DIR = "data/jsonls_direct_api" # Adjusted directory name
-DATASET_PATH = os.path.join(DATASET_DIR, f"zraw_direct_{model.replace('/', '_')}.jsonl")
-CHECKPOINT_DIR = "data/checkpoints_direct_api" # Adjusted directory name
+DATASET_DIR = "data/jsonls" # Adjusted directory name
+DATASET_PATH = os.path.join(DATASET_DIR, "zraw.jsonl")
+CHECKPOINT_DIR = "data" # Adjusted directory name
 # Create model-specific checkpoint files
 MULTI_SHORT_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_multi_short_{model.replace('/', '_')}")
 SINGLE_LONG_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_single_long_{model.replace('/', '_')}")
@@ -357,5 +357,5 @@ def generate_dataset(paper_limit=50): # Add limit for testing/cost control
 if __name__ == "__main__":
     # You can adjust the paper_limit here for testing, or set to None to process all
     # Be mindful of API costs and rate limits when processing large numbers.
-    generate_dataset(paper_limit=100) # Example: Process only the first 50 papers loaded
+    generate_dataset(paper_limit=250) # Example: Process only the first 50 papers loaded
     # generate_dataset(paper_limit=None) # Uncomment to process all papers from the stream

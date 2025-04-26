@@ -1,4 +1,4 @@
-OLD_RAWS=["./data/data/zraw_curator.jsonl"]
+OLD_RAWS=["./data/jsonls_direct_api/zraw_direct_meta-llama_Llama-4-Maverick-17B-128E-Instruct-FP8.jsonl"]
 NEW_RAW="./data/jsonls/zraw_curator.jsonl"
 
 # Append old data to new data and save as new data

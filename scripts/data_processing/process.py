@@ -102,7 +102,7 @@ display_model_changes(pre_model_counts, post_model_counts, "removing no-thinking
 # Filter examples containing certain phrases
 pre_filter = len(df)
 pre_model_counts = get_model_counts(df)
-df = df[~df['conversations'].astype(str).str.contains("the text|the paper|the doc")]
+df = df[~df['conversations'].astype(str).str.contains("the text|the paper|the doc|The text|The paper|The doc")]
 post_model_counts = get_model_counts(df)
 logging.info(f"Skipped examples with 'the text', 'the paper' or 'the doc': {pre_filter} -> {len(df)}")
 display_model_changes(pre_model_counts, post_model_counts, "filtering specific phrases")
@@ -140,6 +140,33 @@ for model in sorted(set(list(initial_model_counts.keys()) + list(post_model_coun
 
     logging.info(f"{model}: {initial} → {final} ({diff:+d}, {change_pct:.2f}%) {status}")
 logging.info("===============================================")
+
+# Define the model ordering (personal preferences on output quality, we will use gemini pro and llama 4 maverick for the rest of data I think)
+model_order = [
+    "gemini-2.5-pro-exp-03-25",
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "gemini-2.5-flash-preview-04-17",
+    "gemini-2.0-flash",
+    "deepseek-ai/DeepSeek-V3"
+]
+
+# Create a mapping dictionary for sorting
+model_priority = {model: idx for idx, model in enumerate(model_order)}
+
+# Custom sorting function for models
+def model_sort_key(model_name):
+    # Return the priority if model is in our list, otherwise a high number (low priority)
+    return model_priority.get(model_name, len(model_order))
+
+# Create a category for sorting based on the custom order
+df['model_priority'] = df['model'].apply(model_sort_key)
+
+# Order the dataset by model priority, then by arxiv_id, then by entry_type
+logging.info("Sorting dataset by model priority and then by arxiv_id...")
+df = df.sort_values(by=['model_priority', 'arxiv_id', 'entry_type'])
+
+# Drop the temporary column we used for sorting
+df = df.drop(columns=['model_priority'])
 
 # Save the filtered dataset
 logging.info(f"Saving filtered dataset to {OUTPUT_FILE}...")
