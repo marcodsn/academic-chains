@@ -1,18 +1,16 @@
+# NOT WORKING
 import os
 import json
-import queue
 import threading
-import concurrent.futures
-from dotenv import load_dotenv
-from typing import List, Dict
+from typing import List, Dict, Set
 from pydantic import BaseModel, Field
 from random import shuffle
+from datasets import load_dataset
+from transformers import AutoTokenizer
+from dotenv import load_dotenv
 
 # Import Curator
 from bespokelabs import curator
-
-from docling.document_converter import DocumentConverter
-from transformers import AutoTokenizer
 
 # Load environment variables
 load_dotenv()
@@ -20,15 +18,38 @@ api_key = os.getenv("TOGETHER_API_KEY")
 if api_key is None:
     raise ValueError("TOGETHER_API_KEY environment variable not set")
 
-# Set Together API key for Curator
-os.environ["TOGETHER_API_KEY"] = api_key
-
 # Enable Curator Viewer
 # os.environ["CURATOR_VIEWER"]="1"
 
-# model = "deepseek-ai/DeepSeek-V3"
-# model = "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
-model = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+# model = {
+#     "name": "deepseek-ai/DeepSeek-V3",
+#     "backend_params": {
+#         "base_url": "https://api.together.xyz/v1",
+#         "api_key": api_key,
+#         "max_requests_per_minute": 60,
+#         "max_tokens_per_minute": 2_000_000
+#     }
+# }
+
+# model = {
+#     "name": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+#     "backend_params": {
+#         "base_url": "https://api.together.xyz/v1",
+#         "api_key": api_key,
+#         "max_requests_per_minute": 60,
+#         "max_tokens_per_minute": 2_000_000
+#     }
+# }
+
+model = {
+    "name": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+    "backend_params": {
+        "base_url": "https://api.together.xyz/v1",
+        "api_key": api_key,
+        "max_requests_per_minute": 60,
+        "max_tokens_per_minute": 2_000_000
+    }
+}
 
 # Define Pydantic models for structured output
 class ConversationEntry(BaseModel):
@@ -38,244 +59,312 @@ class ConversationEntry(BaseModel):
 class Conversation(BaseModel):
     conversations: List[ConversationEntry] = Field(description="List of conversation entries")
 
-# Loading papers metadata
-papers_metadata = []
-with open("data/arxiv_metadata_nlin.jsonl", "r") as f:
-    for line in f:
-        papers_metadata.append(json.loads(line))
-shuffle(papers_metadata)
+# --- Paths ---
+DATASET_DIR = "data/jsonls"
+DATASET_PATH = os.path.join(DATASET_DIR, "zraw_curator.jsonl")
+CHECKPOINT_DIR = "data"
+MULTI_SHORT_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_multi_short_{model['name'].replace('/', '_')}")
+SINGLE_LONG_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_single_long_{model['name'].replace('/', '_')}")
+
+# --- Ensure Directories Exist ---
+os.makedirs(DATASET_DIR, exist_ok=True)
+os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+
+# --- Thread Lock for File Writing ---
+# To prevent potential race conditions if Curator ever uses threads internally
+# or if we adapt this code for concurrency later.
+file_lock = threading.Lock()
+
+def load_checkpoint(checkpoint_path: str) -> Set[str]:
+    """Load processed arxiv_ids from checkpoint file."""
+    processed_ids = set()
+    if os.path.exists(checkpoint_path):
+        try:
+            with open(checkpoint_path, "r") as f:
+                for line in f:
+                    arxiv_id = line.strip()
+                    if arxiv_id:
+                        processed_ids.add(arxiv_id)
+        except Exception as e:
+            print(f"Warning: Could not load checkpoint {checkpoint_path}. Error: {e}")
+    return processed_ids
+
+def save_checkpoint(checkpoint_path: str, arxiv_id: str):
+    """Append arxiv_id to checkpoint file (thread-safe)."""
+    try:
+        # Use lock to ensure thread safety for appending
+        with file_lock:
+            with open(checkpoint_path, "a") as f:
+                f.write(f"{arxiv_id}\n")
+    except Exception as e:
+        print(f"Error: Could not save checkpoint {checkpoint_path} for ID {arxiv_id}. Error: {e}")
+
+def save_result(dataset_path: str, result: Dict):
+    """Append a single result to the dataset file (thread-safe)."""
+    try:
+        # Use lock to ensure thread safety for appending
+        with file_lock:
+            with open(dataset_path, "a") as f:
+                f.write(json.dumps(result) + "\n")
+    except Exception as e:
+        print(f"Error: Could not save result to {dataset_path}. Error: {e}\nResult: {result}")
+
+
+# Loading papers metadata from HuggingFace dataset
+def load_papers_metadata():
+    # dataset = load_dataset("marcodsn/arxiv-markdown", split='train') # Load only train split
+    # Using streaming=True can be memory efficient for large datasets if needed
+    dataset = load_dataset("marcodsn/arxiv-markdown", split='train', streaming=True)
+    papers_data = []
+    print("Loading papers metadata...")
+    # If streaming, iterate directly; otherwise, iterate over dataset['train']
+    count = 0
+    limit = 50  # Optional: Limit the number of papers for testing/cost control
+    for item in dataset:
+        papers_data.append({
+            "arxiv_id": item["arxiv_id"],
+            "paper_md": item["markdown"],
+            "paper_doi": item["paper_doi"],
+            "paper_authors": item["paper_authors"],
+            "paper_published_date": item["paper_published_date"],
+            "paper_updated_date": item["paper_updated_date"],
+            "categories": item["categories"]
+        })
+        count += 1
+        if count % 1000 == 0:
+            print(f"  Loaded {count} papers...")
+        if count >= limit:
+            print(f"  Reached paper limit ({limit}). Stopping loading.")
+            break
+    print(f"Finished loading {len(papers_data)} papers.")
+    shuffle(papers_data)
+    return papers_data
 
 # Loading prompts
-prompts = {}
-with open("prompts/extraction_examples.jsonl", "r") as f:
-    prompts["multi-short"] = f.read()
-with open("prompts/long_extraction_examples.jsonl", "r") as f:
-    prompts["single-long"] = f.read()
+def load_prompts():
+    prompts = {}
+    # Make sure paths are correct relative to script execution location
+    prompt_dir = "prompts"
+    with open(os.path.join(prompt_dir, "extraction_examples.jsonl"), "r") as f:
+        prompts["multi-short"] = f.read()
+    with open(os.path.join(prompt_dir, "long_extraction_examples.jsonl"), "r") as f:
+        prompts["single-long"] = f.read()
 
-with open("prompts/example_papers/paper_1.md", "r") as f:
-    paper_1_content = f.read()
-    prompts["multi-short"] = prompts["multi-short"].replace("{paper_1}", paper_1_content)
-    prompts["single-long"] = prompts["single-long"].replace("{paper_1}", paper_1_content)
+    paper_1_path = os.path.join(prompt_dir, "example_papers/paper_1.md")
+    paper_2_path = os.path.join(prompt_dir, "example_papers/paper_2.md")
 
-with open("prompts/example_papers/paper_2.md", "r") as f:
-    paper_2_content = f.read()
-    prompts["multi-short"] = prompts["multi-short"].replace("{paper_2}", paper_2_content)
-    prompts["single-long"] = prompts["single-long"].replace("{paper_2}", paper_2_content)
+    if os.path.exists(paper_1_path):
+        with open(paper_1_path, "r") as f:
+            paper_1_content = f.read()
+            prompts["multi-short"] = prompts["multi-short"].replace("{paper_1}", paper_1_content)
+            prompts["single-long"] = prompts["single-long"].replace("{paper_1}", paper_1_content)
+    else:
+        print(f"Warning: Example paper not found at {paper_1_path}")
 
-# Defining functions
-converter = DocumentConverter()
+    if os.path.exists(paper_2_path):
+        with open(paper_2_path, "r") as f:
+            paper_2_content = f.read()
+            prompts["multi-short"] = prompts["multi-short"].replace("{paper_2}", paper_2_content)
+            prompts["single-long"] = prompts["single-long"].replace("{paper_2}", paper_2_content)
+    else:
+        print(f"Warning: Example paper not found at {paper_2_path}")
+
+    return prompts
+
+prompts = load_prompts()
+
 tokenizer = AutoTokenizer.from_pretrained("unsloth/gemma-3-27b-it")
 
 # Define custom LLM classes using Curator
-class MultiShortExtractor(curator.LLM):
+class BaseExtractor(curator.LLM):
+    """Base class for common logic and initialization."""
+    def __init__(self, dataset_path: str, checkpoint_path: str, entry_type: str, **kwargs):
+        super().__init__(**kwargs)
+        self.dataset_path = dataset_path
+        self.checkpoint_path = checkpoint_path
+        self.entry_type = entry_type
+        print(f"Initialized {self.__class__.__name__} to save to:")
+        print(f"  Dataset: {self.dataset_path}")
+        print(f"  Checkpoint: {self.checkpoint_path}")
+
+
+    def _calculate_avg_thinking_tokens(self, response: Conversation) -> float:
+        """Helper to calculate average thinking tokens."""
+        total_thinking_tokens = 0
+        assistant_replies = 0
+
+        for entry in response.conversations:
+            if entry.role == "assistant":
+                assistant_replies += 1
+                try:
+                    # Ensure robust splitting even if tags are missing/malformed
+                    parts = entry.content.split("<think>", 1)
+                    if len(parts) > 1:
+                        think_content = parts[1].split("</think>", 1)[0].strip()
+                        total_thinking_tokens += len(tokenizer.tokenize(think_content))
+                    # else: No think tag found in this response, token count is 0
+                except Exception as e: # Catch potential errors during splitting/tokenizing
+                    print(f"Warning: Error processing <think> tags: {e} in content: {entry.content[:100]}...")
+
+        return total_thinking_tokens / assistant_replies if assistant_replies > 0 else 0.0
+
+    def parse(self, paper_data: Dict, response: Conversation) -> List[Dict]:
+        """Parses the response, saves result and checkpoint, then returns result."""
+        avg_thinking_tokens = self._calculate_avg_thinking_tokens(response)
+        arxiv_id = paper_data.get("arxiv_id", "UNKNOWN_ID") # Ensure ID exists
+
+        result = {
+            "arxiv_id": arxiv_id,
+            "paper_doi": paper_data.get("paper_doi", ""),
+            "paper_authors": paper_data.get("paper_authors", []),
+            "paper_published_date": paper_data.get("paper_published_date", ""),
+            "paper_updated_date": paper_data.get("paper_updated_date", ""),
+            "conversations": [{"role": entry.role, "content": entry.content} for entry in response.conversations],
+            "entry_type": self.entry_type,
+            "categories": paper_data.get("categories", []),
+            "avg_thinking_tokens": avg_thinking_tokens,
+            "model": model["name"]
+        }
+
+        # --- Incremental Saving ---
+        if arxiv_id != "UNKNOWN_ID":
+            save_result(self.dataset_path, result)
+            save_checkpoint(self.checkpoint_path, arxiv_id)
+            # Optional: Add a print statement for progress
+            # print(f"Saved {self.entry_type} result for {arxiv_id}")
+        else:
+            print(f"Warning: Skipping save for entry with missing arxiv_id. Data: {paper_data}")
+
+
+        # Return the result list as expected by Curator
+        return [result]
+
+class MultiShortExtractor(BaseExtractor):
+    def __init__(self, **kwargs):
+        # Pass specific paths and type, along with other args to BaseExtractor
+        super().__init__(
+            dataset_path=DATASET_PATH,
+            checkpoint_path=MULTI_SHORT_CHECKPOINT,
+            entry_type="multi-short",
+            **kwargs
+        )
+
     def prompt(self, paper_data: Dict) -> str:
-        paper_md = paper_data["paper_md"]
+        paper_md = paper_data.get("paper_md", "") # Use .get for safety
+        if "{paper_3}" not in prompts["multi-short"]:
+             print("Warning: Placeholder '{paper_3}' not found in multi-short prompt template.")
+             return prompts["multi-short"] # Return template as is or handle error
+        if not paper_md:
+            print(f"Warning: Empty paper_md for arxiv_id {paper_data.get('arxiv_id')}")
+            # Decide how to handle empty markdown - skip or use a placeholder?
+            # Returning an empty string or raising an error might be appropriate
+            # For now, let's proceed but it might cause issues downstream
+            return prompts["multi-short"].replace("{paper_3}", "[PAPER MARKDOWN MISSING]")
         return prompts["multi-short"].replace("{paper_3}", paper_md)
 
-    def parse(self, paper_data: Dict, response: Conversation) -> List[Dict]:
-        # Calculate average thinking tokens
-        avg_thinking_tokens = 0
-        assistant_replies = 0
+class SingleLongExtractor(BaseExtractor):
+    def __init__(self, **kwargs):
+        # Pass specific paths and type, along with other args to BaseExtractor
+        super().__init__(
+            dataset_path=DATASET_PATH,
+            checkpoint_path=SINGLE_LONG_CHECKPOINT,
+            entry_type="single-long",
+            **kwargs
+        )
 
-        for entry in response.conversations:
-            if entry.role == "assistant":
-                assistant_replies += 1
-                # Extract thinking section between <think> tags
-                try:
-                    think_content = entry.content.split("<think>")[1].split("</think>")[0].strip()
-                    avg_thinking_tokens += len(tokenizer.tokenize(think_content))
-                except IndexError:
-                    print("Warning: Could not find <think>...</think> tags in assistant message")
-
-        if assistant_replies > 0:
-            avg_thinking_tokens /= assistant_replies
-        else:
-            avg_thinking_tokens = 0
-
-        result = {
-            "arxiv_id": paper_data.get("arxiv_id", ""),
-            "paper_doi": paper_data.get("doi", ""),
-            "paper_authors": paper_data.get("authors", []),
-            "paper_published_date": paper_data.get("published_date", ""),
-            "paper_updated_date": paper_data.get("updated_date", ""),
-            "conversations": [{"role": entry.role, "content": entry.content} for entry in response.conversations],
-            "entry_type": "multi-short",
-            "categories": paper_data.get("categories", []),
-            "avg_thinking_tokens": avg_thinking_tokens,
-            "model": model
-        }
-        return [result]
-
-class SingleLongExtractor(curator.LLM):
     def prompt(self, paper_data: Dict) -> str:
-        paper_md = paper_data["paper_md"]
+        paper_md = paper_data.get("paper_md", "") # Use .get for safety
+        if "{paper_3}" not in prompts["single-long"]:
+             print("Warning: Placeholder '{paper_3}' not found in single-long prompt template.")
+             return prompts["single-long"] # Return template as is or handle error
+        if not paper_md:
+            print(f"Warning: Empty paper_md for arxiv_id {paper_data.get('arxiv_id')}")
+            return prompts["single-long"].replace("{paper_3}", "[PAPER MARKDOWN MISSING]")
         return prompts["single-long"].replace("{paper_3}", paper_md)
 
-    def parse(self, paper_data: Dict, response: Conversation) -> List[Dict]:
-        # Calculate average thinking tokens
-        avg_thinking_tokens = 0
-        assistant_replies = 0
-
-        for entry in response.conversations:
-            if entry.role == "assistant":
-                assistant_replies += 1
-                # Extract thinking section between <think> tags
-                try:
-                    think_content = entry.content.split("<think>")[1].split("</think>")[0].strip()
-                    avg_thinking_tokens += len(tokenizer.tokenize(think_content))
-                except IndexError:
-                    print("Warning: Could not find <think>...</think> tags in assistant message")
-
-        if assistant_replies > 0:
-            avg_thinking_tokens /= assistant_replies
-        else:
-            avg_thinking_tokens = 0
-
-        result = {
-            "arxiv_id": paper_data.get("arxiv_id", ""),
-            "paper_doi": paper_data.get("doi", ""),
-            "paper_authors": paper_data.get("authors", []),
-            "paper_published_date": paper_data.get("published_date", ""),
-            "paper_updated_date": paper_data.get("updated_date", ""),
-            "conversations": [{"role": entry.role, "content": entry.content} for entry in response.conversations],
-            "entry_type": "single-long",
-            "categories": paper_data.get("categories", []),
-            "avg_thinking_tokens": avg_thinking_tokens,
-            "model": model
-        }
-        return [result]
 
 def generate_dataset():
-    dataset_path = "dataset/data/zraw_curator.jsonl"
+    """Generate dataset by processing papers, saving incrementally."""
 
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
+    # Initialize empty dataset file if it doesn't exist
+    if not os.path.exists(DATASET_PATH):
+        with open(DATASET_PATH, "w") as _:
+            pass # Create empty file
 
-    # Initialize Curator extractors
+    # Load checkpoints
+    processed_multi_short = load_checkpoint(MULTI_SHORT_CHECKPOINT)
+    processed_single_long = load_checkpoint(SINGLE_LONG_CHECKPOINT)
+
+    print(f"Found {len(processed_multi_short)} papers already processed with multi-short extractor (checkpoint: {MULTI_SHORT_CHECKPOINT})")
+    print(f"Found {len(processed_single_long)} papers already processed with single-long extractor (checkpoint: {SINGLE_LONG_CHECKPOINT})")
+
+    # Load all papers metadata
+    papers_metadata_all = load_papers_metadata()
+    total_papers_loaded = len(papers_metadata_all)
+    print(f"Total papers loaded: {total_papers_loaded}")
+
+    # Filter out already processed papers
+    papers_for_multi_short = [
+        paper for paper in papers_metadata_all
+        if paper.get("arxiv_id") and paper.get("arxiv_id") not in processed_multi_short
+    ]
+    papers_for_single_long = [
+        paper for paper in papers_metadata_all
+        if paper.get("arxiv_id") and paper.get("arxiv_id") not in processed_single_long
+    ]
+
+    print(f"Processing {len(papers_for_multi_short)} new papers with multi-short extractor")
+    print(f"Processing {len(papers_for_single_long)} new papers with single-long extractor")
+
+    # Initialize extractors (passing necessary args)
     multi_short_extractor = MultiShortExtractor(
-        model_name="together_ai/" + model,
-        backend="litellm",
-        backend_params={"api_key": api_key},
-        response_format=Conversation
+        model_name=model["name"],
+        backend="openai",
+        backend_params=model["backend_params"],
+        response_format=Conversation,
+        batch=False # Keep batch=False if processing with rate limits, otherwise you will get an error
     )
 
     single_long_extractor = SingleLongExtractor(
-        model_name="together_ai/" + model,
-        backend="litellm",
-        backend_params={"api_key": api_key},
-        response_format=Conversation
+        model_name=model["name"],
+        backend="openai",
+        backend_params=model["backend_params"],
+        response_format=Conversation,
+        batch=False
     )
 
-    # Function to convert PDF to markdown (this is our metadata download function)
-    def download_paper_md(paper):
-        try:
-            print(f"Converting paper {paper.get('arxiv_id', 'unknown')}...")
-            paper_doc = converter.convert(paper["pdf_url"])
-            paper_md = paper_doc.document.export_to_markdown()
+    # Process with multi-short extractor
+    # Curator's call will iterate, call prompt, call API, call parse (which saves)
+    if papers_for_multi_short:
+        print("\n--- Starting Multi-Short Extraction ({len(papers_for_multi_short)} papers) ---")
+        # The results are saved *during* this call by the parse method.
+        # We don't strictly need the return value unless Curator needs it or for final counts.
+        multi_short_results = multi_short_extractor(papers_for_multi_short)
+        print("--- Finished Multi-Short Extraction ---")
+        # Optional: Check if len(multi_short_results) matches len(papers_for_multi_short)
+        # This can help detect if curator skipped items due to internal errors.
+        print(f"  Expected: {len(papers_for_multi_short)}, Curator processed: {len(multi_short_results)}")
 
-            # Return paper data with markdown
-            return {
-                **paper,
-                "paper_md": paper_md
-            }
-        except Exception as e:
-            print(f"Error converting paper {paper.get('arxiv_id', 'unknown')}: {e}")
-            return None
 
-    # Function to process a batch of papers with both extractors
-    def process_batch(paper_batch):
-        with open(dataset_path, "a") as output_file:
-            # Process with multi-short extractor
-            try:
-                multi_short_results = multi_short_extractor(paper_batch)
-                for result in multi_short_results:
-                    output_file.write(json.dumps(result) + "\n")
-                print(f"Processed batch of {len(paper_batch)} papers with multi-short extractor")
-            except Exception as e:
-                print(f"Error with multi-short extraction: {e}")
+    # Process with single-long extractor
+    if papers_for_single_long:
+        print("\n--- Starting Single-Long Extraction ({len(papers_for_single_long)} papers) ---")
+        # The results are saved *during* this call by the parse method.
+        single_long_results = single_long_extractor(papers_for_single_long)
+        print("--- Finished Single-Long Extraction ---")
+        print(f"  Expected: {len(papers_for_single_long)}, Curator processed: {len(single_long_results)}")
 
-            # Process with single-long extractor
-            try:
-                single_long_results = single_long_extractor(paper_batch)
-                for result in single_long_results:
-                    output_file.write(json.dumps(result) + "\n")
-                print(f"Processed batch of {len(paper_batch)} papers with single-long extractor")
-            except Exception as e:
-                print(f"Error with single-long extraction: {e}")
+    # Recalculate final counts based on potentially updated checkpoints
+    final_processed_multi_short = load_checkpoint(MULTI_SHORT_CHECKPOINT)
+    final_processed_single_long = load_checkpoint(SINGLE_LONG_CHECKPOINT)
 
-    # Create empty file to start with
-    with open(dataset_path, "w") as f:
-        pass
+    print("\nDataset generation attempt complete.")
+    print(f"Results saved incrementally to {DATASET_PATH}")
+    print(f"Checkpoints updated incrementally at {MULTI_SHORT_CHECKPOINT} and {SINGLE_LONG_CHECKPOINT}")
+    print("Total papers processed according to checkpoints:")
+    print(f"  Multi-short: {len(final_processed_multi_short)}")
+    print(f"  Single-long: {len(final_processed_single_long)}")
 
-    # Define batch size and prefetch parameters
-    batch_size = int(os.environ.get("CURATOR_BATCH_SIZE", 8))
-    prefetch_factor = 3  # Prefetch up to 3x the batch size
-    max_download_workers = 1  # Maximum number of parallel downloaders
-
-    # Create a bounded queue for prefetching
-    metadata_queue = queue.Queue(maxsize=prefetch_factor * batch_size)
-
-    # Sentinel value to signal the end of data
-    END_SENTINEL = object()
-
-    # Function to run in a separate thread - handles downloading
-    def downloader_thread():
-        try:
-            # Use ThreadPoolExecutor for parallel downloads
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_download_workers) as executor:
-                # Submit all downloads
-                future_to_paper = {executor.submit(download_paper_md, paper): paper for paper in papers_metadata}
-
-                # Process results as they complete
-                for future in concurrent.futures.as_completed(future_to_paper):
-                    paper = future_to_paper[future]
-                    try:
-                        paper_data = future.result()
-
-                        # Skip None results (failed downloads)
-                        if paper_data is not None:
-                            # This will block if queue is full, limiting prefetching
-                            metadata_queue.put(paper_data)
-                    except Exception as e:
-                        print(f"Unexpected error processing result from {paper.get('arxiv_id', 'unknown')}: {e}")
-        finally:
-            # Ensure sentinel is added even if there's an unexpected error
-            metadata_queue.put(END_SENTINEL)
-
-    # Start the downloader thread
-    downloader = threading.Thread(target=downloader_thread)
-    downloader.daemon = True
-    downloader.start()
-
-    # Process metadata in batches in the main thread
-    current_batch = []
-    papers_processed = 0
-
-    while True:
-        # Get next metadata item
-        paper_data = metadata_queue.get()
-
-        # Check for end sentinel
-        if paper_data is END_SENTINEL:
-            break
-
-        # Add to current batch
-        current_batch.append(paper_data)
-
-        # Process batch if it's full
-        if len(current_batch) >= batch_size:
-            process_batch(current_batch)
-            papers_processed += len(current_batch)
-            print(f"Total papers processed so far: {papers_processed}/{len(papers_metadata)}")
-            current_batch = []
-
-    # Process any remaining items
-    if current_batch:
-        process_batch(current_batch)
-        papers_processed += len(current_batch)
-        print(f"Total papers processed: {papers_processed}/{len(papers_metadata)}")
-
-    print(f"Dataset generation complete. Results saved to {dataset_path}")
 
 # Call the function to generate the dataset
 if __name__ == "__main__":

@@ -17,6 +17,25 @@ RAW_SPLIT_PATTERN = f"{DATA_DIR}/zraw*.jsonl"
 # Create output directory if it doesn't exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Function to get model counts
+def get_model_counts(dataframe):
+    return dataframe['model'].value_counts().to_dict()
+
+# Function to display model changes
+def display_model_changes(before_counts, after_counts, step_name):
+    logging.info(f"\n--- Model changes after {step_name} ---")
+    all_models = set(list(before_counts.keys()) + list(after_counts.keys()))
+    for model in sorted(all_models):
+        before = before_counts.get(model, 0)
+        after = after_counts.get(model, 0)
+        diff = after - before
+        change_pct = (diff / before * 100) if before > 0 else float('inf')
+
+        if diff != 0:
+            logging.info(f"  {model}: {before} → {after} ({diff:+d}, {change_pct:.2f}%)")
+
+    logging.info("-----------------------------------")
+
 def load_jsonl_files(pattern):
     """Load all JSONL files matching a pattern."""
     all_data = []
@@ -65,18 +84,32 @@ logging.info(f"Deduplicated examples: {raw_num_examples} -> {len(deduplicated_da
 df = pd.DataFrame(deduplicated_data)
 logging.info(f"Loaded {len(df)} examples from raw dataset.")
 
+# Get initial model counts
+initial_model_counts = get_model_counts(df)
+logging.info("\n--- Initial model distribution ---")
+for model, count in sorted(initial_model_counts.items(), key=lambda x: x[1], reverse=True):
+    logging.info(f"  {model}: {count}")
+logging.info("-----------------------------------")
+
 # Filter out examples with avg_thinking_tokens == 0
 pre_filter = len(df)
+pre_model_counts = get_model_counts(df)
 df = df[df['avg_thinking_tokens'] != 0]
+post_model_counts = get_model_counts(df)
 logging.info(f"Removed no-thinking examples: {pre_filter} -> {len(df)}")
+display_model_changes(pre_model_counts, post_model_counts, "removing no-thinking examples")
 
 # Filter examples containing certain phrases
 pre_filter = len(df)
+pre_model_counts = get_model_counts(df)
 df = df[~df['conversations'].astype(str).str.contains("the text|the paper|the doc")]
+post_model_counts = get_model_counts(df)
 logging.info(f"Skipped examples with 'the text', 'the paper' or 'the doc': {pre_filter} -> {len(df)}")
+display_model_changes(pre_model_counts, post_model_counts, "filtering specific phrases")
 
 # Filter examples where assistant answer does not end with a period
 pre_filter = len(df)
+pre_model_counts = get_model_counts(df)
 
 # Define a function to check if the last assistant message ends with a period
 def last_assistant_msg_ends_with_period(conversation_list):
@@ -90,8 +123,23 @@ def last_assistant_msg_ends_with_period(conversation_list):
 
 # Apply the function to filter the dataframe
 df = df[df['conversations'].apply(last_assistant_msg_ends_with_period)]
+post_model_counts = get_model_counts(df)
 
 logging.info(f"Skipped examples with assistant answer not ending with a period: {pre_filter} -> {len(df)}")
+display_model_changes(pre_model_counts, post_model_counts, "filtering non-period-ending responses")
+
+# Final summary of model changes from start to end
+logging.info("\n=== SUMMARY: Model counts from start to end ===")
+for model in sorted(set(list(initial_model_counts.keys()) + list(post_model_counts.keys()))):
+    initial = initial_model_counts.get(model, 0)
+    final = post_model_counts.get(model, 0)
+    diff = final - initial
+    change_pct = (diff / initial * 100) if initial > 0 else float('inf')
+
+    status = "REMOVED" if final == 0 and initial > 0 else ""
+
+    logging.info(f"{model}: {initial} → {final} ({diff:+d}, {change_pct:.2f}%) {status}")
+logging.info("===============================================")
 
 # Save the filtered dataset
 logging.info(f"Saving filtered dataset to {OUTPUT_FILE}...")

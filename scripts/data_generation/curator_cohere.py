@@ -1,3 +1,4 @@
+# NOT WORKING
 import os
 import json
 import threading
@@ -13,35 +14,18 @@ from bespokelabs import curator
 
 # Load environment variables
 load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
+api_key = os.getenv("COHERE_API_KEY")
 if api_key is None:
-    raise ValueError("GEMINI_API_KEY environment variable not set")
+    raise ValueError("COHERE_API_KEY environment variable not set")
 
 # Enable Curator Viewer
 # os.environ["CURATOR_VIEWER"]="1"
 
-# model = {
-#     "name": "gemini-2.5-flash-preview-04-17",
-#     "backend_params": {"api_key": api_key,
-#     "max_requests_per_minute": 10,
-#     "max_tokens_per_minute": 250_000
-#     }
-# }
-
-# model = {
-#     "name": "gemini-2.0-flash",
-#     "backend_params": {
-#         "api_key": api_key,
-#         "max_requests_per_minute": 15,
-#         "max_tokens_per_minute": 1_000_000
-#     }
-# }
-
 model = {
-    "name": "gemini-2.5-pro-exp-03-25",
-    "backend_params": {"api_key": api_key,
-    "max_requests_per_minute": 5,
-    "max_tokens_per_minute": 250_000
+    "name": "command-a-03-2025",
+    "backend_params": {
+        "api_key": api_key,
+        "max_requests_per_minute": 20
     }
 }
 
@@ -57,8 +41,8 @@ class Conversation(BaseModel):
 DATASET_DIR = "data/jsonls"
 DATASET_PATH = os.path.join(DATASET_DIR, "zraw_curator.jsonl")
 CHECKPOINT_DIR = "data"
-MULTI_SHORT_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_multi_short_{model['name']}")
-SINGLE_LONG_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_single_long_{model['name']}")
+MULTI_SHORT_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_multi_short_{model['name'].replace('/', '_')}")
+SINGLE_LONG_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_single_long_{model['name'].replace('/', '_')}")
 
 # --- Ensure Directories Exist ---
 os.makedirs(DATASET_DIR, exist_ok=True)
@@ -113,7 +97,7 @@ def load_papers_metadata():
     print("Loading papers metadata...")
     # If streaming, iterate directly; otherwise, iterate over dataset['train']
     count = 0
-    limit = 12  # Optional: Limit the number of papers for testing/cost control
+    limit = 50  # Optional: Limit the number of papers for testing/cost control
     for item in dataset:
         papers_data.append({
             "arxiv_id": item["arxiv_id"],
@@ -312,7 +296,7 @@ def generate_dataset():
 
     # Initialize extractors (passing necessary args)
     multi_short_extractor = MultiShortExtractor(
-        model_name="gemini/" + model["name"],
+        model_name=model["name"],
         backend="litellm",
         backend_params=model["backend_params"],
         response_format=Conversation,
@@ -320,7 +304,7 @@ def generate_dataset():
     )
 
     single_long_extractor = SingleLongExtractor(
-        model_name="gemini/" + model["name"],
+        model_name=model["name"],
         backend="litellm",
         backend_params=model["backend_params"],
         response_format=Conversation,
