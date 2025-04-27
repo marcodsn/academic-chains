@@ -1,4 +1,3 @@
-# NOT WORKING
 import os
 import json
 import threading
@@ -21,35 +20,29 @@ if api_key is None:
 # Enable Curator Viewer
 # os.environ["CURATOR_VIEWER"]="1"
 
-# model = {
-#     "name": "deepseek-ai/DeepSeek-V3",
-#     "backend_params": {
-#         "base_url": "https://api.together.xyz/v1",
-#         "api_key": api_key,
-#         "max_requests_per_minute": 60,
-#         "max_tokens_per_minute": 2_000_000
-#     }
-# }
+model = {
+    "name": "deepseek-ai/DeepSeek-V3",
+    "backend_params": {
+        "max_requests_per_minute": 30,
+        "max_tokens_per_minute": 60_000
+    }
+}
 
 # model = {
 #     "name": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
 #     "backend_params": {
-#         "base_url": "https://api.together.xyz/v1",
-#         "api_key": api_key,
 #         "max_requests_per_minute": 60,
 #         "max_tokens_per_minute": 2_000_000
 #     }
 # }
 
-model = {
-    "name": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-    "backend_params": {
-        "base_url": "https://api.together.xyz/v1",
-        "api_key": api_key,
-        "max_requests_per_minute": 60,
-        "max_tokens_per_minute": 2_000_000
-    }
-}
+# model = {
+#     "name": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+#     "backend_params": {
+#         "max_requests_per_minute": 60,
+#         "max_tokens_per_minute": 2_000_000
+#     }
+# }
 
 # Define Pydantic models for structured output
 class ConversationEntry(BaseModel):
@@ -61,8 +54,8 @@ class Conversation(BaseModel):
 
 # --- Paths ---
 DATASET_DIR = "data/jsonls"
-DATASET_PATH = os.path.join(DATASET_DIR, "zraw_curator.jsonl")
-CHECKPOINT_DIR = "data"
+DATASET_PATH = os.path.join(DATASET_DIR, "zraw.jsonl")
+CHECKPOINT_DIR = "data/checkpoints"
 MULTI_SHORT_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_multi_short_{model['name'].replace('/', '_')}")
 SINGLE_LONG_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_single_long_{model['name'].replace('/', '_')}")
 
@@ -152,6 +145,7 @@ def load_prompts():
 
     paper_1_path = os.path.join(prompt_dir, "example_papers/paper_1.md")
     paper_2_path = os.path.join(prompt_dir, "example_papers/paper_2.md")
+    paper_3_path = os.path.join(prompt_dir, "example_papers/paper_3.md")
 
     if os.path.exists(paper_1_path):
         with open(paper_1_path, "r") as f:
@@ -169,6 +163,14 @@ def load_prompts():
     else:
         print(f"Warning: Example paper not found at {paper_2_path}")
 
+    if os.path.exists(paper_3_path):
+        with open(paper_3_path, "r") as f:
+            paper_3_content = f.read()
+            prompts["multi-short"] = prompts["multi-short"].replace("{paper_3}", paper_3_content)
+            prompts["single-long"] = prompts["single-long"].replace("{paper_3}", paper_3_content)
+    else:
+        print(f"Warning: Example paper not found at {paper_3_path}")
+
     return prompts
 
 prompts = load_prompts()
@@ -177,6 +179,8 @@ tokenizer = AutoTokenizer.from_pretrained("unsloth/gemma-3-27b-it")
 
 # Define custom LLM classes using Curator
 class BaseExtractor(curator.LLM):
+    responses = Conversation
+
     """Base class for common logic and initialization."""
     def __init__(self, dataset_path: str, checkpoint_path: str, entry_type: str, **kwargs):
         super().__init__(**kwargs)
@@ -251,16 +255,16 @@ class MultiShortExtractor(BaseExtractor):
 
     def prompt(self, paper_data: Dict) -> str:
         paper_md = paper_data.get("paper_md", "") # Use .get for safety
-        if "{paper_3}" not in prompts["multi-short"]:
-             print("Warning: Placeholder '{paper_3}' not found in multi-short prompt template.")
+        if "{paper_4}" not in prompts["multi-short"]:
+             print("Warning: Placeholder '{paper_4}' not found in multi-short prompt template.")
              return prompts["multi-short"] # Return template as is or handle error
         if not paper_md:
             print(f"Warning: Empty paper_md for arxiv_id {paper_data.get('arxiv_id')}")
             # Decide how to handle empty markdown - skip or use a placeholder?
             # Returning an empty string or raising an error might be appropriate
             # For now, let's proceed but it might cause issues downstream
-            return prompts["multi-short"].replace("{paper_3}", "[PAPER MARKDOWN MISSING]")
-        return prompts["multi-short"].replace("{paper_3}", paper_md)
+            return prompts["multi-short"].replace("{paper_4}", "[PAPER MARKDOWN MISSING]")
+        return prompts["multi-short"].replace("{paper_4}", paper_md)
 
 class SingleLongExtractor(BaseExtractor):
     def __init__(self, **kwargs):
@@ -274,13 +278,13 @@ class SingleLongExtractor(BaseExtractor):
 
     def prompt(self, paper_data: Dict) -> str:
         paper_md = paper_data.get("paper_md", "") # Use .get for safety
-        if "{paper_3}" not in prompts["single-long"]:
-             print("Warning: Placeholder '{paper_3}' not found in single-long prompt template.")
+        if "{paper_4}" not in prompts["single-long"]:
+             print("Warning: Placeholder '{paper_4}' not found in single-long prompt template.")
              return prompts["single-long"] # Return template as is or handle error
         if not paper_md:
             print(f"Warning: Empty paper_md for arxiv_id {paper_data.get('arxiv_id')}")
-            return prompts["single-long"].replace("{paper_3}", "[PAPER MARKDOWN MISSING]")
-        return prompts["single-long"].replace("{paper_3}", paper_md)
+            return prompts["single-long"].replace("{paper_4}", "[PAPER MARKDOWN MISSING]")
+        return prompts["single-long"].replace("{paper_4}", paper_md)
 
 
 def generate_dataset():
@@ -318,18 +322,16 @@ def generate_dataset():
 
     # Initialize extractors (passing necessary args)
     multi_short_extractor = MultiShortExtractor(
-        model_name=model["name"],
-        backend="openai",
+        model_name="together_ai/" + model["name"],
+        backend="litellm",
         backend_params=model["backend_params"],
-        response_format=Conversation,
         batch=False # Keep batch=False if processing with rate limits, otherwise you will get an error
     )
 
     single_long_extractor = SingleLongExtractor(
-        model_name=model["name"],
-        backend="openai",
+        model_name="together_ai/" + model["name"],
+        backend="litellm",
         backend_params=model["backend_params"],
-        response_format=Conversation,
         batch=False
     )
 

@@ -20,13 +20,13 @@ if api_key is None:
 # Enable Curator Viewer
 # os.environ["CURATOR_VIEWER"]="1"
 
-# model = {
-#     "name": "gemini-2.5-flash-preview-04-17",
-#     "backend_params": {"api_key": api_key,
-#     "max_requests_per_minute": 10,
-#     "max_tokens_per_minute": 250_000
-#     }
-# }
+model = {
+    "name": "gemini-2.5-flash-preview-04-17",
+    "backend_params": {"api_key": api_key,
+    "max_requests_per_minute": 10,
+    "max_tokens_per_minute": 250_000
+    }
+}
 
 # model = {
 #     "name": "gemini-2.0-flash",
@@ -37,13 +37,13 @@ if api_key is None:
 #     }
 # }
 
-model = {
-    "name": "gemini-2.5-pro-exp-03-25",
-    "backend_params": {"api_key": api_key,
-    "max_requests_per_minute": 5,
-    "max_tokens_per_minute": 250_000
-    }
-}
+# model = {
+#     "name": "gemini-2.5-pro-exp-03-25",
+#     "backend_params": {"api_key": api_key,
+#     "max_requests_per_minute": 5,
+#     "max_tokens_per_minute": 250_000
+#     }
+# }
 
 # Define Pydantic models for structured output
 class ConversationEntry(BaseModel):
@@ -55,7 +55,7 @@ class Conversation(BaseModel):
 
 # --- Paths ---
 DATASET_DIR = "data/jsonls"
-DATASET_PATH = os.path.join(DATASET_DIR, "zraw_curator.jsonl")
+DATASET_PATH = os.path.join(DATASET_DIR, "zraw.jsonl")
 CHECKPOINT_DIR = "data"
 MULTI_SHORT_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_multi_short_{model['name']}")
 SINGLE_LONG_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_single_long_{model['name']}")
@@ -113,7 +113,7 @@ def load_papers_metadata():
     print("Loading papers metadata...")
     # If streaming, iterate directly; otherwise, iterate over dataset['train']
     count = 0
-    limit = 12  # Optional: Limit the number of papers for testing/cost control
+    limit = 250  # Optional: Limit the number of papers for testing/cost control
     for item in dataset:
         papers_data.append({
             "arxiv_id": item["arxiv_id"],
@@ -146,6 +146,7 @@ def load_prompts():
 
     paper_1_path = os.path.join(prompt_dir, "example_papers/paper_1.md")
     paper_2_path = os.path.join(prompt_dir, "example_papers/paper_2.md")
+    paper_3_path = os.path.join(prompt_dir, "example_papers/paper_3.md")
 
     if os.path.exists(paper_1_path):
         with open(paper_1_path, "r") as f:
@@ -162,6 +163,14 @@ def load_prompts():
             prompts["single-long"] = prompts["single-long"].replace("{paper_2}", paper_2_content)
     else:
         print(f"Warning: Example paper not found at {paper_2_path}")
+
+    if os.path.exists(paper_3_path):
+        with open(paper_3_path, "r") as f:
+            paper_3_content = f.read()
+            prompts["multi-short"] = prompts["multi-short"].replace("{paper_3}", paper_3_content)
+            prompts["single-long"] = prompts["single-long"].replace("{paper_3}", paper_3_content)
+    else:
+        print(f"Warning: Example paper not found at {paper_3_path}")
 
     return prompts
 
@@ -245,16 +254,16 @@ class MultiShortExtractor(BaseExtractor):
 
     def prompt(self, paper_data: Dict) -> str:
         paper_md = paper_data.get("paper_md", "") # Use .get for safety
-        if "{paper_3}" not in prompts["multi-short"]:
-             print("Warning: Placeholder '{paper_3}' not found in multi-short prompt template.")
+        if "{paper_4}" not in prompts["multi-short"]:
+             print("Warning: Placeholder '{paper_4}' not found in multi-short prompt template.")
              return prompts["multi-short"] # Return template as is or handle error
         if not paper_md:
             print(f"Warning: Empty paper_md for arxiv_id {paper_data.get('arxiv_id')}")
             # Decide how to handle empty markdown - skip or use a placeholder?
             # Returning an empty string or raising an error might be appropriate
             # For now, let's proceed but it might cause issues downstream
-            return prompts["multi-short"].replace("{paper_3}", "[PAPER MARKDOWN MISSING]")
-        return prompts["multi-short"].replace("{paper_3}", paper_md)
+            return prompts["multi-short"].replace("{paper_4}", "[PAPER MARKDOWN MISSING]")
+        return prompts["multi-short"].replace("{paper_4}", paper_md)
 
 class SingleLongExtractor(BaseExtractor):
     def __init__(self, **kwargs):
@@ -268,13 +277,13 @@ class SingleLongExtractor(BaseExtractor):
 
     def prompt(self, paper_data: Dict) -> str:
         paper_md = paper_data.get("paper_md", "") # Use .get for safety
-        if "{paper_3}" not in prompts["single-long"]:
-             print("Warning: Placeholder '{paper_3}' not found in single-long prompt template.")
+        if "{paper_4}" not in prompts["single-long"]:
+             print("Warning: Placeholder '{paper_4}' not found in single-long prompt template.")
              return prompts["single-long"] # Return template as is or handle error
         if not paper_md:
             print(f"Warning: Empty paper_md for arxiv_id {paper_data.get('arxiv_id')}")
-            return prompts["single-long"].replace("{paper_3}", "[PAPER MARKDOWN MISSING]")
-        return prompts["single-long"].replace("{paper_3}", paper_md)
+            return prompts["single-long"].replace("{paper_4}", "[PAPER MARKDOWN MISSING]")
+        return prompts["single-long"].replace("{paper_4}", paper_md)
 
 
 def generate_dataset():

@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Configuration
 DATA_DIR = "./data/jsonls"
 OUTPUT_DIR = "./data/jsonls"
-OUTPUT_FILE = f"{OUTPUT_DIR}/train.jsonl"
+OUTPUT_FILE = f"{OUTPUT_DIR}/zprocessed.jsonl"
 RAW_SPLIT_PATTERN = f"{DATA_DIR}/zraw*.jsonl"
 
 # Create output directory if it doesn't exist

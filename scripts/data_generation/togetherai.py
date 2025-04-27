@@ -119,6 +119,7 @@ def load_prompts():
 
         paper_1_path = os.path.join(prompt_dir, "example_papers/paper_1.md")
         paper_2_path = os.path.join(prompt_dir, "example_papers/paper_2.md")
+        paper_3_path = os.path.join(prompt_dir, "example_papers/paper_3.md")
 
         if os.path.exists(paper_1_path):
             with open(paper_1_path, "r") as f:
@@ -135,6 +136,14 @@ def load_prompts():
                 prompts["single-long"] = prompts["single-long"].replace("{paper_2}", paper_2_content)
         else:
             print(f"Warning: Example paper not found at {paper_2_path}")
+
+        if os.path.exists(paper_3_path):
+            with open(paper_3_path, "r") as f:
+                paper_3_content = f.read()
+                prompts["multi-short"] = prompts["multi-short"].replace("{paper_3}", paper_3_content)
+                prompts["single-long"] = prompts["single-long"].replace("{paper_3}", paper_3_content)
+        else:
+            print(f"Warning: Example paper not found at {paper_3_path}")
 
     except FileNotFoundError as e:
         print(f"Error loading prompts: {e}. Make sure the 'prompts' directory and files exist.")
@@ -210,7 +219,7 @@ def generate_dataset(paper_limit=50): # Add limit for testing/cost control
             generate_multi_short = arxiv_id not in processed_multi_short
             if generate_multi_short:
                 print(f"  Generating multi-short entry for {arxiv_id}...")
-                prompt_multi_short = prompts["multi-short"].replace("{paper_3}", paper_md)
+                prompt_multi_short = prompts["multi-short"].replace("{paper_4}", paper_md)
 
                 try:
                     response = together.chat.completions.create(
@@ -272,7 +281,7 @@ def generate_dataset(paper_limit=50): # Add limit for testing/cost control
             generate_single_long = arxiv_id not in processed_single_long
             if generate_single_long:
                 print(f"  Generating single-long entry for {arxiv_id}...")
-                prompt_single_long = prompts["single-long"].replace("{paper_3}", paper_md)
+                prompt_single_long = prompts["single-long"].replace("{paper_4}", paper_md)
 
                 try:
                     response = together.chat.completions.create(

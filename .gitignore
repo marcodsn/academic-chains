@@ -13,7 +13,7 @@ models/*
 
 data/jsonls/*
 data/data/*
-data/.checkpoint*
+data/checkpoints/*
 data/*_direct_api
 
 .ropeproject

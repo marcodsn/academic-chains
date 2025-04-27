@@ -34,3 +34,12 @@ This represents a full transition to option 1 (pre-processing), bringing several
 With this pre-processed dataset, the pipeline is now significantly faster since the only bottleneck is the inference speed itself. We've eliminated all the PDF downloading and processing steps that previously created delays between inference steps.
 
 This approach is much more scalable and is the recommended path for anyone looking to generate large volumes of academic content with Curator!
+
+
+## Notes for myself (will be made easier at release time)
+pipeline:
+- generate data (generates zraw.jsonl)
+- deduplicate
+- process (generates zprocessed.jsonl)
+- verify (generates zverified*.jsonl files)
+- merge verifiers (generates train.jsonl)
