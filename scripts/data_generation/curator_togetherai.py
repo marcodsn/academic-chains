@@ -31,16 +31,16 @@ model = {
 # model = {
 #     "name": "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
 #     "backend_params": {
-#         "max_requests_per_minute": 60,
-#         "max_tokens_per_minute": 2_000_000
+#         "max_requests_per_minute": 30,
+#         "max_tokens_per_minute": 60_000
 #     }
 # }
 
 # model = {
 #     "name": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
 #     "backend_params": {
-#         "max_requests_per_minute": 60,
-#         "max_tokens_per_minute": 2_000_000
+#         "max_requests_per_minute": 30,
+#         "max_tokens_per_minute": 60_000
 #     }
 # }
 
@@ -112,7 +112,7 @@ def load_papers_metadata():
     print("Loading papers metadata...")
     # If streaming, iterate directly; otherwise, iterate over dataset['train']
     count = 0
-    limit = 50  # Optional: Limit the number of papers for testing/cost control
+    limit = 1  # Optional: Limit the number of papers for testing/cost control
     for item in dataset:
         papers_data.append({
             "arxiv_id": item["arxiv_id"],
@@ -179,7 +179,7 @@ tokenizer = AutoTokenizer.from_pretrained("unsloth/gemma-3-27b-it")
 
 # Define custom LLM classes using Curator
 class BaseExtractor(curator.LLM):
-    responses = Conversation
+    response_format = Conversation
 
     """Base class for common logic and initialization."""
     def __init__(self, dataset_path: str, checkpoint_path: str, entry_type: str, **kwargs):
@@ -214,6 +214,9 @@ class BaseExtractor(curator.LLM):
 
     def parse(self, paper_data: Dict, response: Conversation) -> List[Dict]:
         """Parses the response, saves result and checkpoint, then returns result."""
+        print(type(response))
+        print(response)
+        exit()
         avg_thinking_tokens = self._calculate_avg_thinking_tokens(response)
         arxiv_id = paper_data.get("arxiv_id", "UNKNOWN_ID") # Ensure ID exists
 
