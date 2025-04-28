@@ -56,7 +56,7 @@ class Conversation(BaseModel):
 # --- Paths ---
 DATASET_DIR = "data/jsonls"
 DATASET_PATH = os.path.join(DATASET_DIR, "zraw.jsonl")
-CHECKPOINT_DIR = "data"
+CHECKPOINT_DIR = "data/checkpoints"
 MULTI_SHORT_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_multi_short_{model['name']}")
 SINGLE_LONG_CHECKPOINT = os.path.join(CHECKPOINT_DIR, f".checkpoint_single_long_{model['name']}")
 
@@ -113,7 +113,7 @@ def load_papers_metadata():
     print("Loading papers metadata...")
     # If streaming, iterate directly; otherwise, iterate over dataset['train']
     count = 0
-    limit = 250  # Optional: Limit the number of papers for testing/cost control
+    limit = 500  # Optional: Limit the number of papers for testing/cost control
     for item in dataset:
         papers_data.append({
             "arxiv_id": item["arxiv_id"],

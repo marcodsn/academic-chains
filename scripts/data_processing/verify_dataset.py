@@ -4,6 +4,7 @@ import threading
 import time
 import random
 from typing import List, Dict, Set
+import uuid
 from pydantic import BaseModel, Field, validator
 from dotenv import load_dotenv
 import traceback # For better error logging
@@ -28,14 +29,32 @@ verifier_models = [
     #         "max_tokens_per_minute": 1_000_000,
     #     }
     # },
+    # {
+    #     "name": "gemini-2.5-flash-preview-04-17",
+    #     "backend_params": {
+    #         "api_key": api_key,
+    #         "max_requests_per_minute": 10,
+    #         "max_tokens_per_minute": 250_000
+    #     }
+    # }
     {
-        "name": "gemini-2.5-flash-preview-04-17",
+        "name": "ollama/hf.co/google/gemma-3-27b-it-qat-q4_0-gguf",
+        "backend": "litellm",
         "backend_params": {
-            "api_key": api_key,
-            "max_requests_per_minute": 10,
-            "max_tokens_per_minute": 250_000
+            "base_url": "http://localhost:11434",
+            "max_concurrent_requests": 16
         }
     }
+    # {
+    #     "name": "leon-se/gemma-3-27b-it-qat-W4A16-G128",
+    #     "backend": "vllm",
+    #     "backend_params": {
+    #         "tensor_parallel_size": 1, # Adjust based on GPU count
+    #         "gpu_memory_utilization": 0.95,
+    #         "max_model_length": 16000,
+    #         "max_tokens": 2000
+    #     }
+    # }
 ]
 
 # --- Paths ---
@@ -74,6 +93,17 @@ class VerificationResult(BaseModel):
         return v
 
 # --- Helper Functions ---
+def generate_content_id(conversations):
+    """Generate a deterministic UUID based on the content of conversations"""
+    if conversations is None:
+        return str(uuid.uuid4())  # Random UUID if no conversations
+
+    # Convert conversations to a string and encode it
+    conv_str = json.dumps(conversations, sort_keys=True)
+    # Create a UUID5 using the DNS namespace and the conversation string
+    content_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, conv_str))
+    return content_id
+
 def get_model_checkpoint_path(model_name: str) -> str:
     """Get the checkpoint path specific to a model."""
     return os.path.join(CHECKPOINT_DIR, f".checkpoint_verifier_{model_name}")
@@ -84,27 +114,27 @@ def get_model_output_path(model_name: str) -> str:
     return f"{base_name}_{model_name}{ext}"
 
 def load_checkpoint(checkpoint_path: str) -> Set[str]:
-    """Load processed arxiv_ids from checkpoint file."""
-    processed_ids = set()
+    """Load processed composite keys (arxiv_id_content_id) from checkpoint file."""
+    processed_keys = set()
     if os.path.exists(checkpoint_path):
         try:
             with open(checkpoint_path, "r") as f:
                 for line in f:
-                    arxiv_id = line.strip()
-                    if arxiv_id:
-                        processed_ids.add(arxiv_id)
+                    composite_key = line.strip()
+                    if composite_key:
+                        processed_keys.add(composite_key)
         except Exception as e:
             print(f"Warning: Could not load checkpoint {checkpoint_path}. Error: {e}")
-    return processed_ids
+    return processed_keys
 
-def save_checkpoint(checkpoint_path: str, arxiv_id: str):
-    """Append arxiv_id to checkpoint file (thread-safe)."""
+def save_checkpoint(checkpoint_path: str, composite_key: str):
+    """Append composite_key to checkpoint file (thread-safe)."""
     try:
         with file_lock:
             with open(checkpoint_path, "a") as f:
-                f.write(f"{arxiv_id}\n")
+                f.write(f"{composite_key}\n")
     except Exception as e:
-        print(f"Error: Could not save checkpoint {checkpoint_path} for ID {arxiv_id}. Error: {e}")
+        print(f"Error: Could not save checkpoint {checkpoint_path} for key {composite_key}. Error: {e}")
 
 def save_result(output_path: str, result: Dict):
     """Append a single verified result to the output dataset file (thread-safe)."""
@@ -139,7 +169,7 @@ class VerifierLLM(curator.LLM):
         self.prompt_template = prompt_template
         self.output_path = output_path
         self.checkpoint_path = checkpoint_path
-        self.model_name = "".join(model_name.split("/")[1:])
+        self.model_name = model_name.split("/")[-1]
         print(f"Initialized VerifierLLM with model: {self.model_name}")
         print(f"  Saving results to: {self.output_path}")
         print(f"  Updating checkpoint: {self.checkpoint_path}")
@@ -167,13 +197,21 @@ class VerifierLLM(curator.LLM):
         Parses the structured response and saves the verification result.
         """
         arxiv_id = item_to_verify.get("arxiv_id")
+        conversations = item_to_verify.get("conversations", [])
 
         if not arxiv_id:
             print("Warning: Processing item with missing arxiv_id. Skipping save.")
             return []
 
+        # Generate content_id and create composite key
+        content_id = generate_content_id(conversations)
+        composite_key = f"{arxiv_id}_{content_id}"
+
         # Create the augmented result
         augmented_result = item_to_verify.copy()
+
+        # Add content_id to the result
+        augmented_result["content_id"] = content_id
 
         # Store the model-specific verification in the traditional format
         augmented_result["suitability"] = response.classification
@@ -184,11 +222,11 @@ class VerifierLLM(curator.LLM):
         try:
             # Save to model-specific output
             save_result(self.output_path, augmented_result)
-            save_checkpoint(self.checkpoint_path, arxiv_id)
+            save_checkpoint(self.checkpoint_path, composite_key)
 
-            print(f"Saved verification for {arxiv_id}. Classification: {response.classification}")
+            print(f"Saved verification for {composite_key}. Classification: {response.classification}")
         except Exception as e:
-            print(f"Error during saving for {arxiv_id}: {e}")
+            print(f"Error during saving for {composite_key}: {e}")
             traceback.print_exc()
 
         return [augmented_result]
@@ -210,7 +248,7 @@ def verify_dataset():
 
     # Process with each verifier model
     for verifier_model in verifier_models:
-        model_name = verifier_model["name"]
+        model_name = verifier_model["name"].split("/")[-1]
         model_checkpoint_path = get_model_checkpoint_path(model_name)
         model_output_path = get_model_output_path(model_name)
 
@@ -228,8 +266,8 @@ def verify_dataset():
                 prompt_template=verifier_prompt_template,
                 output_path=model_output_path,
                 checkpoint_path=model_checkpoint_path,
-                model_name="gemini/" + model_name,
-                backend="litellm",
+                model_name=verifier_model["name"],
+                backend=verifier_model["backend"],
                 backend_params=verifier_model["backend_params"],
                 response_format=VerificationResult,
                 batch=False
@@ -254,6 +292,7 @@ def verify_dataset():
                     try:
                         item = json.loads(line)
                         arxiv_id = item.get("arxiv_id")
+                        conversations = item.get("conversations")
 
                         # Basic validation
                         if not arxiv_id:
@@ -261,8 +300,12 @@ def verify_dataset():
                         if "conversations" not in item or not isinstance(item["conversations"], list):
                             continue
 
+                        # Generate content_id and create composite key
+                        content_id = generate_content_id(conversations)
+                        composite_key = f"{arxiv_id}_{content_id}"
+
                         # Check if this model already processed this item
-                        if arxiv_id not in processed_ids:
+                        if composite_key not in processed_ids:
                             items_to_process.append(item)
                     except Exception:
                         continue
