@@ -10,10 +10,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Configuration
 DATA_DIR = "./data"
-PROCESSED_FILE = f"{DATA_DIR}/jsonls/train.jsonl"
-RAW_SPLIT_PATTERN = f"{DATA_DIR}/jsonls/zraw*.jsonl"
-CURATOR_SPLIT_PATTERN = f"{DATA_DIR}/jsonls/zraw_curator*.jsonl"
-HF_DATASET_NAME = "marcodsn/academic-chains"
+PROCESSED_FILE = f"{DATA_DIR}/jsonls/zverified.jsonl"
+# RAW_SPLIT_PATTERN = f"{DATA_DIR}/jsonls/zraw*.jsonl"
+# CURATOR_SPLIT_PATTERN = f"{DATA_DIR}/jsonls/zraw_curator*.jsonl"
+HF_DATASET_NAME = "marcodsn/academic-chains-dev"
 
 def load_jsonl_file(file_path):
     """Load a single JSONL file."""
@@ -58,44 +58,46 @@ train_dataset = Dataset.from_pandas(train_df)
 logging.info(f"Loaded {len(train_dataset)} training examples.")
 
 # Load the raw dataset
-logging.info(f"Loading raw dataset from {RAW_SPLIT_PATTERN}...")
-raw_df = load_jsonl_files(RAW_SPLIT_PATTERN)
-raw_dataset = Dataset.from_pandas(raw_df)
-logging.info(f"Loaded {len(raw_dataset)} raw examples.")
+# logging.info(f"Loading raw dataset from {RAW_SPLIT_PATTERN}...")
+# raw_df = load_jsonl_files(RAW_SPLIT_PATTERN)
+# raw_dataset = Dataset.from_pandas(raw_df)
+# logging.info(f"Loaded {len(raw_dataset)} raw examples.")
 
 # Try to load the curator dataset
-logging.info(f"Attempting to load curator dataset from {CURATOR_SPLIT_PATTERN}...")
-has_curator = False
-try:
-    curator_df = load_jsonl_files(CURATOR_SPLIT_PATTERN)
-    if not curator_df.empty:
-        curator_dataset = Dataset.from_pandas(curator_df)
-        has_curator = True
-        logging.info(f"Loaded {len(curator_dataset)} curator examples.")
-    else:
-        logging.info("No curator dataset found.")
-        curator_dataset = None
-except Exception as e:
-    logging.info(f"Note: zraw_curator split not loaded: {e}")
-    curator_dataset = None
+# logging.info(f"Attempting to load curator dataset from {CURATOR_SPLIT_PATTERN}...")
+# has_curator = False
+# try:
+#     curator_df = load_jsonl_files(CURATOR_SPLIT_PATTERN)
+#     if not curator_df.empty:
+#         curator_dataset = Dataset.from_pandas(curator_df)
+#         has_curator = True
+#         logging.info(f"Loaded {len(curator_dataset)} curator examples.")
+#     else:
+#         logging.info("No curator dataset found.")
+#         curator_dataset = None
+# except Exception as e:
+#     logging.info(f"Note: zraw_curator split not loaded: {e}")
+#     curator_dataset = None
 
 # Create a DatasetDict with all splits
 full_dataset = DatasetDict({
     "train": train_dataset,
-    "zraw": raw_dataset
+    # "zraw": raw_dataset
 })
 
-if has_curator:
-    full_dataset["zraw_curator"] = curator_dataset
+# if has_curator:
+#     full_dataset["zraw_curator"] = curator_dataset
 
-logging.info(f"Prepared dataset with {len(train_dataset)} train examples, "
-             f"{len(raw_dataset)} raw examples, and "
-             f"{len(curator_dataset) if has_curator else 0} curator examples")
+# logging.info(f"Prepared dataset with {len(train_dataset)} train examples, "
+#              f"{len(raw_dataset)} raw examples, and "
+#              f"{len(curator_dataset) if has_curator else 0} curator examples")
+
+logging.info(f"Prepared dataset with {len(train_dataset)} train examples")
 
 # Push to HuggingFace Hub
 logging.info(f"Pushing dataset to Hugging Face Hub: {HF_DATASET_NAME}")
 try:
-    full_dataset.push_to_hub(HF_DATASET_NAME, revision="dev")
+    full_dataset.push_to_hub(HF_DATASET_NAME, revision="main")
     logging.info("Dataset successfully pushed to Hub!")
 except Exception as e:
     logging.error(f"Failed to push dataset to Hub: {e}")

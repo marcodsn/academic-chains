@@ -113,7 +113,7 @@ def load_papers_metadata():
     print("Loading papers metadata...")
     # If streaming, iterate directly; otherwise, iterate over dataset['train']
     count = 0
-    limit = 500  # Optional: Limit the number of papers for testing/cost control
+    limit = 220  # Optional: Limit the number of papers for testing/cost control
     for item in dataset:
         papers_data.append({
             "arxiv_id": item["arxiv_id"],

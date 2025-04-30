@@ -37,8 +37,32 @@ verifier_models = [
     #         "max_tokens_per_minute": 250_000
     #     }
     # }
+    # {
+    #     "name": "ollama/hf.co/google/gemma-3-27b-it-qat-q4_0-gguf",
+    #     "backend": "litellm",
+    #     "backend_params": {
+    #         "base_url": "http://localhost:11434",
+    #         "max_concurrent_requests": 16
+    #     }
+    # }
+    # {
+    #     "name": "ollama/hf.co/unsloth/Qwen3-32B-GGUF:Q5_K_XL",
+    #     "backend": "litellm",
+    #     "backend_params": {
+    #         "base_url": "http://localhost:11434",
+    #         "max_concurrent_requests": 16
+    #     }
+    # }
+    # {
+    #     "name": "ollama/hf.co/unsloth/Qwen3-30B-A3B-GGUF:Q5_K_M",
+    #     "backend": "litellm",
+    #     "backend_params": {
+    #         "base_url": "http://localhost:11434",
+    #         "max_concurrent_requests": 16
+    #     }
+    # }
     {
-        "name": "ollama/hf.co/google/gemma-3-27b-it-qat-q4_0-gguf",
+        "name": "ollama/hf.co/unsloth/Mistral-Small-3.1-24B-Instruct-2503-GGUF:Q4_K_XL",
         "backend": "litellm",
         "backend_params": {
             "base_url": "http://localhost:11434",

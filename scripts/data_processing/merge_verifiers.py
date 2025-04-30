@@ -9,7 +9,7 @@ import json
 import glob
 import argparse
 import uuid
-from typing import Dict, Counter
+from typing import Dict
 from collections import defaultdict
 import time
 
@@ -35,17 +35,77 @@ def extract_model_name(filename: str) -> str:
     name = filename.split(".jsonl")[0].replace("zverified_", "")
     return name
 
-def print_model_summary(summary_stats):
-    """Print a summary of suitable/unsuitable papers by generator and verifier model."""
+def calculate_agreement_rates(merged_data):
+    """Calculate the agreement rates between verifier models."""
+    # Get all verifier models
+    all_verifiers = set()
+    for item in merged_data.values():
+        for result in item.get("verifier_results", []):
+            all_verifiers.add(result.get("model"))
+    all_verifiers = list(all_verifiers)
+
+    # For each pair of verifiers
+    pairs_agreement = {}
+    for i in range(len(all_verifiers)):
+        for j in range(i+1, len(all_verifiers)):
+            v1, v2 = all_verifiers[i], all_verifiers[j]
+
+            shared_items = 0
+            agreed_items = 0
+
+            for item_id, item in merged_data.items():
+                results_by_model = {}
+                for result in item.get("verifier_results", []):
+                    results_by_model[result.get("model")] = result.get("classification")
+
+                # If both verifiers judged this item
+                if v1 in results_by_model and v2 in results_by_model:
+                    shared_items += 1
+                    if results_by_model[v1] == results_by_model[v2]:
+                        agreed_items += 1
+
+            if shared_items > 0:
+                agreement_rate = agreed_items / shared_items
+                pairs_agreement[(v1, v2)] = {
+                    "shared_items": shared_items,
+                    "agreed_items": agreed_items,
+                    "agreement_rate": agreement_rate
+                }
+
+    # Calculate overall agreement among all verifiers
+    all_verifiers_agreement = {"total": 0, "agreed": 0}
+    for item_id, item in merged_data.items():
+        results_by_model = {}
+        for result in item.get("verifier_results", []):
+            results_by_model[result.get("model")] = result.get("classification")
+
+        # If all verifiers judged this item
+        if len(results_by_model) == len(all_verifiers) and len(all_verifiers) > 0:
+            all_verifiers_agreement["total"] += 1
+
+            # Check if all agreed
+            classifications = set(results_by_model.values())
+            if len(classifications) == 1:
+                all_verifiers_agreement["agreed"] += 1
+
+    if all_verifiers_agreement["total"] > 0:
+        all_verifiers_agreement["agreement_rate"] = all_verifiers_agreement["agreed"] / all_verifiers_agreement["total"]
+    else:
+        all_verifiers_agreement["agreement_rate"] = 0
+
+    return pairs_agreement, all_verifiers_agreement
+
+def print_model_summary(merged_data, model_stats):
+    """Print a summary of suitable/unsuitable papers and verifier agreement."""
+    # First section: Suitability by unique elements
     print("\n" + "="*80)
-    print("SUITABILITY SUMMARY BY GENERATOR AND VERIFIER MODEL")
+    print("SUITABILITY SUMMARY BY UNIQUE ELEMENTS")
     print("="*80)
 
-    # First, get all unique generator and verifier models
+    # Get all unique generator and verifier models
     all_generator_models = set()
     all_verifier_models = set()
-
-    for (gen_model, ver_model) in summary_stats:
+    for (gen_model, ver_model) in model_stats:
         all_generator_models.add(gen_model)
         all_verifier_models.add(ver_model)
 
@@ -56,44 +116,78 @@ def print_model_summary(summary_stats):
     # Print summary for each generator model
     for gen_model in all_generator_models:
         print(f"\nGenerator Model: {gen_model}")
-        print("-" * 60)
-        print(f"{'Verifier Model':<35} | {'Suitable':<10} | {'Unsuitable':<10} | {'Total':<10} | {'% Suitable':<10}")
-        print("-" * 60)
+        print("-" * 70)
+        print(f"{'Verifier Model':<30} | {'Suitable':<10} | {'Unsuitable':<10} | {'Total':<10} | {'% Suitable':<10}")
+        print("-" * 70)
 
-        gen_suitable_total = 0
-        gen_unsuitable_total = 0
+        # Track unique items for this generator
+        gen_suitable_ids = set()
+        gen_unsuitable_ids = set()
 
         for ver_model in all_verifier_models:
-            suitable = summary_stats.get((gen_model, ver_model), {}).get("Suitable", 0)
-            unsuitable = summary_stats.get((gen_model, ver_model), {}).get("Unsuitable", 0)
+            suitable_ids = model_stats.get((gen_model, ver_model), {}).get("Suitable", set())
+            unsuitable_ids = model_stats.get((gen_model, ver_model), {}).get("Unsuitable", set())
+
+            suitable = len(suitable_ids)
+            unsuitable = len(unsuitable_ids)
             total = suitable + unsuitable
 
             if total > 0:
                 percentage = (suitable / total) * 100
-                print(f"{ver_model:<35} | {suitable:<10} | {unsuitable:<10} | {total:<10} | {percentage:.1f}%")
-                gen_suitable_total += suitable
-                gen_unsuitable_total += unsuitable
+                print(f"{ver_model:<30} | {suitable:<10} | {unsuitable:<10} | {total:<10} | {percentage:.1f}%")
+                gen_suitable_ids.update(suitable_ids)
+                gen_unsuitable_ids.update(unsuitable_ids)
 
-        gen_total = gen_suitable_total + gen_unsuitable_total
+        # Generator totals based on unique IDs
+        gen_suitable = len(gen_suitable_ids)
+        gen_unsuitable = len(gen_unsuitable_ids)
+        gen_total = gen_suitable + gen_unsuitable
+
         if gen_total > 0:
-            gen_percentage = (gen_suitable_total / gen_total) * 100
-            print("-" * 60)
-            print(f"{'TOTAL':<35} | {gen_suitable_total:<10} | {gen_unsuitable_total:<10} | {gen_total:<10} | {gen_percentage:.1f}%")
+            gen_percentage = (gen_suitable / gen_total) * 100
+            print("-" * 70)
+            print(f"{'TOTAL UNIQUE ITEMS':<30} | {gen_suitable:<10} | {gen_unsuitable:<10} | {gen_total:<10} | {gen_percentage:.1f}%")
 
-    # Grand total summary across all models
+    # Second section: Agreement rates
+    pairs_agreement, all_agreement = calculate_agreement_rates(merged_data)
+
     print("\n" + "="*80)
-    print("OVERALL SUMMARY")
+    print("AGREEMENT RATES BETWEEN VERIFIER MODELS")
     print("="*80)
-    total_suitable = sum(stats.get("Suitable", 0) for stats in summary_stats.values())
-    total_unsuitable = sum(stats.get("Unsuitable", 0) for stats in summary_stats.values())
-    grand_total = total_suitable + total_unsuitable
+    print(f"{'Verifier Pair':<40} | {'Shared Items':<15} | {'Agreed':<15} | {'Agreement Rate':<15}")
+    print("-" * 90)
 
-    if grand_total > 0:
-        overall_percentage = (total_suitable / grand_total) * 100
-        print(f"Total Suitable: {total_suitable}")
-        print(f"Total Unsuitable: {total_unsuitable}")
-        print(f"Grand Total: {grand_total}")
-        print(f"Overall Suitability Rate: {overall_percentage:.1f}%")
+    for (v1, v2), stats in sorted(pairs_agreement.items()):
+        pair_name = f"{v1} & {v2}"
+        print(f"{pair_name:<40} | {stats['shared_items']:<15} | {stats['agreed_items']:<15} | {stats['agreement_rate']*100:.1f}%")
+
+    print("\n" + "="*80)
+    print("OVERALL AGREEMENT ACROSS ALL VERIFIERS")
+    print("="*80)
+    print(f"Total items evaluated by all verifiers: {all_agreement['total']}")
+    print(f"Items with unanimous agreement: {all_agreement['agreed']}")
+    if all_agreement['total'] > 0:
+        print(f"Overall agreement rate: {all_agreement['agreement_rate']*100:.1f}%")
+    else:
+        print("Overall agreement rate: N/A (no items evaluated by all verifiers)")
+    print("="*80)
+
+    print("\n" + "="*80)
+    print("FINAL SUITABILITY COUNTS (After Aggregation)")
+    print("="*80)
+
+    # Count items by final suitability
+    final_suitable = sum(1 for item in merged_data.values() if item.get("suitability") == "Suitable")
+    final_unsuitable = sum(1 for item in merged_data.values() if item.get("suitability") == "Unsuitable")
+    final_total = len(merged_data)
+
+    print(f"Final Suitable Items: {final_suitable}")
+    print(f"Final Unsuitable Items: {final_unsuitable}")
+    print(f"Total Unique Items: {final_total}")
+
+    if final_total > 0:
+        final_suitable_percentage = (final_suitable / final_total) * 100
+        print(f"Overall Suitability Rate: {final_suitable_percentage:.1f}%")
     print("="*80)
 
 def merge_verification_results(output_dir: str, merged_output_path: str, file_pattern: str) -> int:
@@ -133,7 +227,7 @@ def merge_verification_results(output_dir: str, merged_output_path: str, file_pa
     total_unique_items = 0
 
     # Track statistics by generator and verifier model
-    model_stats = defaultdict(lambda: defaultdict(int))
+    model_stats = defaultdict(lambda: defaultdict(set))
 
     for verifier_file in verifier_files:
         model_name = extract_model_name(os.path.basename(verifier_file))
@@ -195,8 +289,8 @@ def merge_verification_results(output_dir: str, merged_output_path: str, file_pa
                         # Add this verification result to the item
                         merged_data[unique_key]["verifier_results"].append(verifier_result)
 
-                        # Update statistics
-                        model_stats[(generator_model, model_name)][classification] += 1
+                        # Update statistics - now storing sets of unique IDs
+                        model_stats[(generator_model, model_name)][classification].add(unique_key)
 
                     except json.JSONDecodeError:
                         print(f"  Warning: Invalid JSON at line {line_num}")
@@ -244,8 +338,8 @@ def merge_verification_results(output_dir: str, merged_output_path: str, file_pa
         print(f"Merged file saved to: {merged_output_path}")
         print(f"Total merge time: {end_time - start_time:.2f} seconds")
 
-        # Print the summary by generator and verifier model
-        print_model_summary(model_stats)
+        # Print the summary by generator and verifier model with agreement rates
+        print_model_summary(merged_data, model_stats)
 
         return len(merged_data)
     except Exception as e:
