@@ -1,6 +1,6 @@
 # Academic Reasoning and Intuition Chains
 
-![Surgeon problem solved lol](surgeon-competition-dark.png)
+![Surgeon problem solved lol](data/surgeon-competition-dark.png)
 
 A high-quality dataset of reasoning and intuition chains distilled from open-access research papers-primarily in quantitative biology, general economics, and related STEM fields. This project demonstrates a modern pipeline for extracting, verifying, and packaging research-like reasoning, developed for the [Reasoning Datasets Competition (April 2025)](https://huggingface.co/blog/bespokelabs/reasoning-datasets-competition).
 
