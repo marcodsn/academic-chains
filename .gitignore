@@ -1,10 +1,13 @@
 .env
 config.py
 
-src/*
-!src/train
-!src/inference
-!src/utils
+src/train/model_*
+src/train/_*
+src/train/outputs
+src/train/unsloth*
+src/train/qwen3*
+src/train/llama.cpp
+src/eval*
 
 !/scripts/curator/
 
