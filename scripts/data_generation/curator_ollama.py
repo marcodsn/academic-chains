@@ -40,9 +40,9 @@ shuffle(papers_metadata)
 
 # Loading prompts
 prompts = {}
-with open("prompts/extraction_examples.jsonl", "r") as f:
+with open("prompts/extraction_examples.txt", "r") as f:
     prompts["multi-short"] = f.read()
-with open("prompts/long_extraction_examples.jsonl", "r") as f:
+with open("prompts/long_extraction_examples.txt", "r") as f:
     prompts["single-long"] = f.read()
 
 with open("prompts/example_papers/paper_1.md", "r") as f:

@@ -85,7 +85,7 @@ verifier_models = [
 INPUT_DATASET_PATH = "data/jsonls/zprocessed.jsonl"
 OUTPUT_DATASET_PATH = "data/jsonls/zverified.jsonl"
 CHECKPOINT_DIR = "data/checkpoints"
-VERIFIER_PROMPT_PATH = "./prompts/verifier.jsonl"
+VERIFIER_PROMPT_PATH = "./prompts/verifier.txt"
 
 # --- Ensure Directories Exist ---
 os.makedirs(os.path.dirname(INPUT_DATASET_PATH), exist_ok=True)

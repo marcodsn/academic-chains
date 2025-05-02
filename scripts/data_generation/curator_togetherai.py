@@ -138,9 +138,9 @@ def load_prompts():
     prompts = {}
     # Make sure paths are correct relative to script execution location
     prompt_dir = "prompts"
-    with open(os.path.join(prompt_dir, "extraction_examples.jsonl"), "r") as f:
+    with open(os.path.join(prompt_dir, "extraction_examples.txt"), "r") as f:
         prompts["multi-short"] = f.read()
-    with open(os.path.join(prompt_dir, "long_extraction_examples.jsonl"), "r") as f:
+    with open(os.path.join(prompt_dir, "long_extraction_examples.txt"), "r") as f:
         prompts["single-long"] = f.read()
 
     paper_1_path = os.path.join(prompt_dir, "example_papers/paper_1.md")

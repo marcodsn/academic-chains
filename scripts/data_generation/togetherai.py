@@ -112,9 +112,9 @@ def load_prompts():
     prompts = {}
     prompt_dir = "prompts"
     try:
-        with open(os.path.join(prompt_dir, "extraction_examples.jsonl"), "r") as f:
+        with open(os.path.join(prompt_dir, "extraction_examples.txt"), "r") as f:
             prompts["multi-short"] = f.read()
-        with open(os.path.join(prompt_dir, "long_extraction_examples.jsonl"), "r") as f:
+        with open(os.path.join(prompt_dir, "long_extraction_examples.txt"), "r") as f:
             prompts["single-long"] = f.read()
 
         paper_1_path = os.path.join(prompt_dir, "example_papers/paper_1.md")
