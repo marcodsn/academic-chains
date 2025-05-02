@@ -913,7 +913,7 @@ uvicorn==0.34.2
     #   fastapi-cli
 uvloop==0.21.0
     # via uvicorn
-vllm==0.8.4
+vllm==0.8.5
     # via -r requirements.in
 wandb==0.19.10
     # via -r requirements.in
