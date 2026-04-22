@@ -289,7 +289,7 @@ llvmlite==0.44.0
     # via numba
 lm-format-enforcer==0.10.11
     # via vllm
-lxml==5.4.0
+lxml==6.1.0
     # via
     #   docling
     #   python-docx
