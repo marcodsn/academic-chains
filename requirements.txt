@@ -792,7 +792,7 @@ tokenizers==0.21.1
     # via
     #   transformers
     #   vllm
-torch==2.6.0
+torch==2.8.0
     # via
     #   -r requirements.in
     #   accelerate
