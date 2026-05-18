@@ -590,7 +590,7 @@ pyside6-essentials==6.9.0
     # via
     #   pyside6
     #   pyside6-addons
-pytest==8.3.5
+pytest==9.0.3
     # via -r requirements.in
 python-bidi==0.6.6
     # via easyocr
