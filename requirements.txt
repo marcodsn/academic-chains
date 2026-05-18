@@ -157,7 +157,7 @@ fastrlock==0.8.3
     # via cupy-cuda12x
 feedparser==6.0.11
     # via arxiv
-filelock==3.18.0
+filelock==3.20.3
     # via
     #   datasets
     #   huggingface-hub
