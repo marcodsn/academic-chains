@@ -834,7 +834,7 @@ tqdm==4.67.1
     #   transformers
     #   unsloth-zoo
     #   vllm
-transformers==4.51.3
+transformers==5.0.0rc3
     # via
     #   -r requirements.in
     #   compressed-tensors
