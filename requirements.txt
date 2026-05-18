@@ -482,7 +482,7 @@ peft==0.15.2
     # via
     #   -r requirements.in
     #   unsloth-zoo
-pillow==11.2.1
+pillow==12.2.0
     # via
     #   -r requirements.in
     #   docling
