@@ -168,7 +168,7 @@ filelock==3.18.0
     #   vllm
 filetype==1.2.0
     # via docling
-fonttools==4.57.0
+fonttools==4.60.2
     # via matplotlib
 frozenlist==1.6.0
     # via
