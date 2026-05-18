@@ -184,7 +184,7 @@ gguf==0.16.2
     # via vllm
 gitdb==4.0.12
     # via gitpython
-gitpython==3.1.44
+gitpython==3.1.50
     # via
     #   -r requirements.in
     #   wandb
