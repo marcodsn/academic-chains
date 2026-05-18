@@ -931,7 +931,7 @@ wrapt==1.17.2
     # via deprecated
 xformers==0.0.29.post2
     # via vllm
-xgrammar==0.1.18
+xgrammar==0.1.32
     # via vllm
 xlsxwriter==3.2.3
     # via python-pptx
