@@ -7,7 +7,7 @@ accelerate==1.6.0
     #   unsloth-zoo
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.11.18
+aiohttp==3.13.4
     # via
     #   datasets
     #   fsspec
