@@ -645,7 +645,7 @@ regex==2024.11.6
     #   tiktoken
     #   transformers
     #   unsloth-zoo
-requests==2.32.3
+requests==2.33.0
     # via
     #   -r requirements.in
     #   arxiv
