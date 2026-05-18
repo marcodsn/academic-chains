@@ -123,7 +123,7 @@ docker-pycreds==0.4.0
     # via wandb
 docling==2.31.0
     # via -r requirements.in
-docling-core==2.28.1
+docling-core==2.48.4
     # via
     #   docling
     #   docling-ibm-models
