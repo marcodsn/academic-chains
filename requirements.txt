@@ -903,7 +903,7 @@ unidecode==1.4.0
     # via python-slugify
 unsloth-zoo==2025.3.17
     # via -r requirements.in
-urllib3==2.4.0
+urllib3==2.7.0
     # via
     #   requests
     #   sentry-sdk
